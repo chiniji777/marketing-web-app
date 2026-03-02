@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   Mail,
   Megaphone,
+  Package,
   Search,
   Settings,
   Sparkles,
@@ -17,9 +18,6 @@ import {
   Zap,
   ClipboardList,
   Send,
-  BookTemplate,
-  Ear,
-  HeartPulse,
   type LucideIcon,
 } from "lucide-react"
 
@@ -59,6 +57,11 @@ export const dashboardNavigation: NavSection[] = [
           { title: "Calendar", href: "/content/calendar", icon: Calendar },
           { title: "Templates", href: "/content/templates", icon: FileText },
         ],
+      },
+      {
+        title: "Products",
+        href: "/products",
+        icon: Package,
       },
       {
         title: "Campaigns",

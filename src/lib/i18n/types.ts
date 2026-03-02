@@ -36,6 +36,7 @@ export interface TranslationDictionary {
     allReports: string
     reportBuilder: string
     notifications: string
+    products: string
     settings: string
   }
   // Admin navigation

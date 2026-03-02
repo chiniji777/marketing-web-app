@@ -6,6 +6,8 @@ const modelsWithOrgId = [
   "contentTemplate",
   "socialAccount",
   "socialMention",
+  "product",
+  "facebookAdAccount",
   "adsCampaign",
   "lead",
   "contact",

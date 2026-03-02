@@ -22,6 +22,7 @@ const sectionKeyMap: Record<string, keyof TranslationDictionary["nav"]> = {
 
 const itemKeyMap: Record<string, keyof TranslationDictionary["navItems"]> = {
   Dashboard: "dashboard",
+  Products: "products",
   "AI Content": "aiContent",
   Generator: "generator",
   Calendar: "calendar",

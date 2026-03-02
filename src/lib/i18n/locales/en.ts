@@ -34,6 +34,7 @@ export const en: TranslationDictionary = {
     allReports: "All Reports",
     reportBuilder: "Report Builder",
     notifications: "Notifications",
+    products: "Products",
     settings: "Settings",
   },
   adminNav: {

@@ -34,6 +34,7 @@ export const th: TranslationDictionary = {
     allReports: "รายงานทั้งหมด",
     reportBuilder: "สร้างรายงาน",
     notifications: "การแจ้งเตือน",
+    products: "สินค้า",
     settings: "ตั้งค่า",
   },
   adminNav: {
