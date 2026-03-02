@@ -35,12 +35,26 @@ export function getConnectionString(): string {
 
 function createPrismaClient() {
   const connectionString = getConnectionString()
-  const adapter = new PrismaPg({ connectionString, max: 1 })
+  const adapter = new PrismaPg({ connectionString, max: 10 })
   return new PrismaClient({ adapter })
 }
 
-export const prisma = globalForPrisma.prisma ?? createPrismaClient()
-
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma
+function getClient(): PrismaClient {
+  if (!globalForPrisma.prisma) {
+    globalForPrisma.prisma = createPrismaClient()
+  }
+  return globalForPrisma.prisma
 }
+
+// Lazy proxy — defers PrismaClient creation until first property access at runtime.
+// This prevents "DATABASE_URL is not set" crash during Next.js build phase.
+export const prisma = new Proxy({} as PrismaClient, {
+  get(_target, prop: string | symbol) {
+    const client = getClient()
+    const value = Reflect.get(client, prop)
+    if (typeof value === "function") {
+      return (value as (...args: unknown[]) => unknown).bind(client)
+    }
+    return value
+  },
+})
