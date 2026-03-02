@@ -1,5 +1,3 @@
-import { PlaywrightCrawler, type PlaywrightCrawlingContext } from "@crawlee/playwright"
-
 export interface ScrapedMention {
   platform: string
   authorName: string | null
@@ -16,19 +14,31 @@ interface ScrapeOptions {
   maxResults?: number
 }
 
+async function getCrawler() {
+  try {
+    const { PlaywrightCrawler } = await import("@crawlee/playwright")
+    return PlaywrightCrawler
+  } catch {
+    return null
+  }
+}
+
 // ─── Twitter/X Scraper ───────────────────────────────────────
 
 async function scrapeTwitter(
   keywords: string[],
   maxResults: number
 ): Promise<ScrapedMention[]> {
+  const PlaywrightCrawler = await getCrawler()
+  if (!PlaywrightCrawler) throw new Error("Scraping not available in serverless environment")
+
   const mentions: ScrapedMention[] = []
 
   const crawler = new PlaywrightCrawler({
     maxRequestsPerCrawl: maxResults,
     headless: true,
     requestHandlerTimeoutSecs: 30,
-    async requestHandler({ page, request }: PlaywrightCrawlingContext) {
+    async requestHandler({ page, request }) {
       await page.waitForTimeout(2000)
 
       const tweets = await page.$$eval("article[data-testid='tweet']", (articles) =>
@@ -79,13 +89,16 @@ async function scrapeInstagram(
   keywords: string[],
   maxResults: number
 ): Promise<ScrapedMention[]> {
+  const PlaywrightCrawler = await getCrawler()
+  if (!PlaywrightCrawler) throw new Error("Scraping not available in serverless environment")
+
   const mentions: ScrapedMention[] = []
 
   const crawler = new PlaywrightCrawler({
     maxRequestsPerCrawl: maxResults,
     headless: true,
     requestHandlerTimeoutSecs: 30,
-    async requestHandler({ page, request }: PlaywrightCrawlingContext) {
+    async requestHandler({ page, request }) {
       await page.waitForTimeout(3000)
 
       const posts = await page.$$eval("article a[href*='/p/']", (links) =>
@@ -126,13 +139,16 @@ async function scrapeTikTok(
   keywords: string[],
   maxResults: number
 ): Promise<ScrapedMention[]> {
+  const PlaywrightCrawler = await getCrawler()
+  if (!PlaywrightCrawler) throw new Error("Scraping not available in serverless environment")
+
   const mentions: ScrapedMention[] = []
 
   const crawler = new PlaywrightCrawler({
     maxRequestsPerCrawl: maxResults,
     headless: true,
     requestHandlerTimeoutSecs: 30,
-    async requestHandler({ page, request }: PlaywrightCrawlingContext) {
+    async requestHandler({ page, request }) {
       await page.waitForTimeout(3000)
 
       const videos = await page.$$eval("[data-e2e='search_top-item']", (items) =>
@@ -180,13 +196,16 @@ async function scrapeYouTube(
   keywords: string[],
   maxResults: number
 ): Promise<ScrapedMention[]> {
+  const PlaywrightCrawler = await getCrawler()
+  if (!PlaywrightCrawler) throw new Error("Scraping not available in serverless environment")
+
   const mentions: ScrapedMention[] = []
 
   const crawler = new PlaywrightCrawler({
     maxRequestsPerCrawl: maxResults,
     headless: true,
     requestHandlerTimeoutSecs: 30,
-    async requestHandler({ page }: PlaywrightCrawlingContext) {
+    async requestHandler({ page }) {
       await page.waitForTimeout(2000)
 
       const videos = await page.$$eval("ytd-video-renderer", (renderers) =>
