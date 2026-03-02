@@ -263,7 +263,122 @@ export async function updateCampaign(
   return fbPost(`/${campaignId}`, accessToken, body)
 }
 
+// ─── Facebook Pages ──────────────────────────────────────────
+
+export interface FacebookPage {
+  id: string
+  name: string
+  accessToken: string
+}
+
+export async function getPages(accessToken: string): Promise<FacebookPage[]> {
+  const result = await fbGet<{ data: Array<{ id: string; name: string; access_token: string }> }>(
+    "/me/accounts",
+    accessToken,
+    { fields: "id,name,access_token", limit: "100" }
+  )
+  return result.data.map((p) => ({ id: p.id, name: p.name, accessToken: p.access_token }))
+}
+
+// ─── Delete Object ──────────────────────────────────────────
+
+export async function deleteObject(
+  objectId: string,
+  accessToken: string
+): Promise<{ success: boolean }> {
+  const url = `${FB_GRAPH_URL}/${objectId}`
+  const res = await fetch(url, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ access_token: accessToken }),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(`Facebook API error: ${err.error?.message || res.statusText}`)
+  }
+  return { success: true }
+}
+
 // ─── Ad Sets ────────────────────────────────────────────────
+
+interface FacebookAdSetRaw {
+  id: string
+  name: string
+  status: string
+  campaign_id: string
+  daily_budget?: string
+  lifetime_budget?: string
+  billing_event: string
+  optimization_goal: string
+  targeting?: Record<string, unknown>
+  start_time?: string
+  end_time?: string
+  created_time: string
+  updated_time: string
+}
+
+export interface FacebookAdSet {
+  id: string
+  name: string
+  status: string
+  campaignId: string
+  dailyBudget?: number
+  lifetimeBudget?: number
+  billingEvent: string
+  optimizationGoal: string
+  targeting?: Record<string, unknown>
+  startTime?: string
+  endTime?: string
+  createdTime: string
+  updatedTime: string
+}
+
+export async function getAdSets(
+  campaignId: string,
+  accessToken: string
+): Promise<FacebookAdSet[]> {
+  const result = await fbGet<{ data: FacebookAdSetRaw[] }>(
+    `/${campaignId}/adsets`,
+    accessToken,
+    {
+      fields: "id,name,status,campaign_id,daily_budget,lifetime_budget,billing_event,optimization_goal,targeting,start_time,end_time,created_time,updated_time",
+      limit: "100",
+    }
+  )
+  return result.data.map((s) => ({
+    id: s.id,
+    name: s.name,
+    status: s.status,
+    campaignId: s.campaign_id,
+    dailyBudget: s.daily_budget ? parseInt(s.daily_budget) / 100 : undefined,
+    lifetimeBudget: s.lifetime_budget ? parseInt(s.lifetime_budget) / 100 : undefined,
+    billingEvent: s.billing_event,
+    optimizationGoal: s.optimization_goal,
+    targeting: s.targeting,
+    startTime: s.start_time,
+    endTime: s.end_time,
+    createdTime: s.created_time,
+    updatedTime: s.updated_time,
+  }))
+}
+
+export async function updateAdSet(
+  adSetId: string,
+  accessToken: string,
+  params: {
+    name?: string
+    status?: string
+    dailyBudget?: number
+    targeting?: Record<string, unknown>
+  }
+): Promise<{ success: boolean }> {
+  const body: Record<string, unknown> = {}
+  if (params.name) body.name = params.name
+  if (params.status) body.status = params.status
+  if (params.dailyBudget) body.daily_budget = Math.round(params.dailyBudget * 100)
+  if (params.targeting) body.targeting = params.targeting
+  return fbPost(`/${adSetId}`, accessToken, body)
+}
 
 export async function createAdSet(
   adAccountId: string,
@@ -292,6 +407,60 @@ export async function createAdSet(
 }
 
 // ─── Ads ────────────────────────────────────────────────────
+
+interface FacebookAdRaw {
+  id: string
+  name: string
+  status: string
+  adset_id: string
+  creative?: { id: string }
+  created_time: string
+  updated_time: string
+}
+
+export interface FacebookAd {
+  id: string
+  name: string
+  status: string
+  adSetId: string
+  creativeId?: string
+  createdTime: string
+  updatedTime: string
+}
+
+export async function getAds(
+  adSetId: string,
+  accessToken: string
+): Promise<FacebookAd[]> {
+  const result = await fbGet<{ data: FacebookAdRaw[] }>(
+    `/${adSetId}/ads`,
+    accessToken,
+    {
+      fields: "id,name,status,adset_id,creative{id},created_time,updated_time",
+      limit: "100",
+    }
+  )
+  return result.data.map((a) => ({
+    id: a.id,
+    name: a.name,
+    status: a.status,
+    adSetId: a.adset_id,
+    creativeId: a.creative?.id,
+    createdTime: a.created_time,
+    updatedTime: a.updated_time,
+  }))
+}
+
+export async function updateAd(
+  adId: string,
+  accessToken: string,
+  params: { name?: string; status?: string }
+): Promise<{ success: boolean }> {
+  const body: Record<string, unknown> = {}
+  if (params.name) body.name = params.name
+  if (params.status) body.status = params.status
+  return fbPost(`/${adId}`, accessToken, body)
+}
 
 export async function createAd(
   adAccountId: string,
