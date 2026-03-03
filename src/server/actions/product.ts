@@ -6,9 +6,13 @@ import {
   createProductSchema,
   updateProductSchema,
   updateProductMarketingDataSchema,
+  createProductContentSchema,
+  createProductEmailCampaignSchema,
   type CreateProductInput,
   type UpdateProductInput,
   type UpdateProductMarketingDataInput,
+  type CreateProductContentInput,
+  type CreateProductEmailCampaignInput,
 } from "@/server/validators/product"
 import { revalidatePath } from "next/cache"
 import { serializePrisma } from "@/lib/serialize"
@@ -164,4 +168,211 @@ export async function getProductStats() {
   ])
 
   return { total, active, draft, withAds }
+}
+
+// ─── Product-Scoped Content ─────────────────────────────────
+
+export async function getProductContents(productId: string, filters?: {
+  status?: string
+  page?: number
+  pageSize?: number
+}) {
+  const { db } = await getOrgContext()
+  const page = filters?.page || 1
+  const pageSize = filters?.pageSize || 20
+  const skip = (page - 1) * pageSize
+
+  const where: Record<string, unknown> = { productId }
+  if (filters?.status) where.status = filters.status
+
+  const [contents, total] = await Promise.all([
+    db.content.findMany({
+      where,
+      orderBy: { updatedAt: "desc" },
+      skip,
+      take: pageSize,
+    }),
+    db.content.count({ where }),
+  ])
+
+  return {
+    contents: serializePrisma(contents),
+    total,
+    page,
+    pageSize,
+    totalPages: Math.ceil(total / pageSize),
+  }
+}
+
+export async function createProductContent(input: CreateProductContentInput) {
+  const { userId, organizationId, db } = await getOrgContext()
+  const parsed = createProductContentSchema.parse(input)
+
+  const content = await db.content.create({
+    data: {
+      title: parsed.title,
+      body: parsed.body,
+      contentType: parsed.contentType,
+      tone: parsed.tone,
+      language: parsed.language,
+      aiGenerated: parsed.aiGenerated,
+      aiPrompt: parsed.aiPrompt,
+      productId: parsed.productId,
+      createdById: userId,
+      organizationId,
+    },
+  })
+
+  revalidatePath(`/products/${parsed.productId}`)
+  revalidatePath("/content")
+  return serializePrisma(content)
+}
+
+// ─── Product-Scoped Social Mentions ─────────────────────────
+
+export async function getProductMentions(productId: string, filters?: {
+  page?: number
+  pageSize?: number
+}) {
+  const { db } = await getOrgContext()
+  const page = filters?.page || 1
+  const pageSize = filters?.pageSize || 20
+  const skip = (page - 1) * pageSize
+
+  const where = { productId }
+
+  const [mentions, total] = await Promise.all([
+    db.socialMention.findMany({
+      where,
+      orderBy: { mentionedAt: "desc" },
+      skip,
+      take: pageSize,
+    }),
+    db.socialMention.count({ where }),
+  ])
+
+  return {
+    mentions: serializePrisma(mentions),
+    total,
+    page,
+    pageSize,
+    totalPages: Math.ceil(total / pageSize),
+  }
+}
+
+// ─── Product-Scoped Email Campaigns ─────────────────────────
+
+export async function getProductEmailCampaigns(productId: string, filters?: {
+  page?: number
+  pageSize?: number
+}) {
+  const { db } = await getOrgContext()
+  const page = filters?.page || 1
+  const pageSize = filters?.pageSize || 20
+  const skip = (page - 1) * pageSize
+
+  const where = { productId }
+
+  const [campaigns, total] = await Promise.all([
+    db.emailCampaign.findMany({
+      where,
+      orderBy: { updatedAt: "desc" },
+      skip,
+      take: pageSize,
+    }),
+    db.emailCampaign.count({ where }),
+  ])
+
+  return {
+    campaigns: serializePrisma(campaigns),
+    total,
+    page,
+    pageSize,
+    totalPages: Math.ceil(total / pageSize),
+  }
+}
+
+export async function createProductEmailCampaign(input: CreateProductEmailCampaignInput) {
+  const { organizationId, db } = await getOrgContext()
+  const parsed = createProductEmailCampaignSchema.parse(input)
+
+  const campaign = await db.emailCampaign.create({
+    data: {
+      name: parsed.name,
+      subject: parsed.subject,
+      htmlContent: parsed.htmlContent,
+      textContent: parsed.textContent,
+      senderName: parsed.senderName,
+      senderEmail: parsed.senderEmail,
+      productId: parsed.productId,
+      organizationId,
+    },
+  })
+
+  revalidatePath(`/products/${parsed.productId}`)
+  revalidatePath("/email")
+  return serializePrisma(campaign)
+}
+
+// ─── Product-Scoped Ad Campaigns ────────────────────────────
+
+export async function getProductCampaigns(productId: string, filters?: {
+  page?: number
+  pageSize?: number
+}) {
+  const { db } = await getOrgContext()
+  const page = filters?.page || 1
+  const pageSize = filters?.pageSize || 20
+  const skip = (page - 1) * pageSize
+
+  const where = { productId }
+
+  const [campaigns, total] = await Promise.all([
+    db.campaign.findMany({
+      where,
+      orderBy: { updatedAt: "desc" },
+      skip,
+      take: pageSize,
+    }),
+    db.campaign.count({ where }),
+  ])
+
+  return {
+    campaigns: serializePrisma(campaigns),
+    total,
+    page,
+    pageSize,
+    totalPages: Math.ceil(total / pageSize),
+  }
+}
+
+// ─── Update Content Schedule (for calendar DnD) ─────────────
+
+export async function updateContentSchedule(contentId: string, scheduledAt: string) {
+  const { db } = await getOrgContext()
+
+  const content = await db.content.update({
+    where: { id: contentId },
+    data: {
+      scheduledAt: new Date(scheduledAt),
+      status: "SCHEDULED",
+    },
+  })
+
+  revalidatePath("/content")
+  revalidatePath("/content/calendar")
+  return serializePrisma(content)
+}
+
+// ─── Get Products List (simple, for selectors) ──────────────
+
+export async function getProductsSimple() {
+  const { db } = await getOrgContext()
+
+  const products = await db.product.findMany({
+    select: { id: true, name: true, category: true, marketingDataScore: true },
+    orderBy: { name: "asc" },
+  })
+
+  return serializePrisma(products)
 }

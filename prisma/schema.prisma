@@ -188,8 +188,12 @@ model SocialMention {
   mentionedAt     DateTime
   createdAt       DateTime       @default(now())
 
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id])
+
   @@index([organizationId, mentionedAt])
   @@index([organizationId, sentiment])
+  @@index([productId])
   @@map("social_mentions")
 }
 
@@ -240,9 +244,14 @@ model Content {
   campaignId   String?
   tags         Tag[]
 
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id])
+
   @@index([organizationId, status])
   @@index([organizationId, contentType])
   @@index([organizationId, scheduledAt])
+  @@index([organizationId, createdAt])
+  @@index([productId])
   @@map("content")
 }
 
@@ -339,7 +348,11 @@ model Campaign {
   emailCampaigns EmailCampaign[]
   analytics      CampaignAnalytics[]
 
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id])
+
   @@index([organizationId, status])
+  @@index([productId])
   @@map("campaigns")
 }
 
@@ -417,8 +430,12 @@ model Product {
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 
-  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  adsCampaigns AdsCampaign[]
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  adsCampaigns   AdsCampaign[]
+  socialMentions SocialMention[]
+  emailCampaigns EmailCampaign[]
+  contents       Content[]
+  campaigns      Campaign[]
 
   @@index([organizationId, status])
   @@map("products")
@@ -657,7 +674,11 @@ model EmailCampaign {
   campaign     Campaign?      @relation(fields: [campaignId], references: [id])
   template     EmailTemplate? @relation(fields: [templateId], references: [id])
 
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id])
+
   @@index([organizationId, status])
+  @@index([productId])
   @@map("email_campaigns")
 }
 

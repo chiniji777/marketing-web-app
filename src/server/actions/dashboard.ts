@@ -22,41 +22,64 @@ export async function getDashboardData() {
   const now = new Date()
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
 
-  // Run queries sequentially to avoid overwhelming connection pool (local Prisma Postgres has connection_limit=1)
-  const campaignTotal = await db.campaign.count()
-  const campaignActive = await db.campaign.count({ where: { status: "ACTIVE" } })
-  const campaignBudget = await db.campaign.aggregate({
-    where: { status: { in: ["ACTIVE", "COMPLETED"] } },
-    _sum: { budget: true, spentAmount: true },
-  })
-  const contentTotal = await db.content.count()
-  const contentPublished = await db.content.count({ where: { status: "PUBLISHED" } })
-  const contentScheduled = await db.content.count({ where: { status: "SCHEDULED" } })
-  const contentDrafts = await db.content.count({ where: { status: "DRAFT" } })
-  const mentionTotal = await db.socialMention.count()
-  const mentionPositive = await db.socialMention.count({ where: { sentiment: "POSITIVE" } })
-  const mentionNegative = await db.socialMention.count({ where: { sentiment: "NEGATIVE" } })
-  const mentionNeutral = await db.socialMention.count({ where: { sentiment: "NEUTRAL" } })
-  const leadTotal = await db.lead.count()
-  const leadNew = await db.lead.count({ where: { createdAt: { gte: monthStart } } })
-  const leadQualified = await db.lead.count({ where: { status: "QUALIFIED" } })
-  const leadConverted = await db.lead.count({ where: { status: "WON" } })
-  const subscriberTotal = await db.emailSubscriber.count({ where: { status: "ACTIVE" } })
-  const emailActive = await db.emailCampaign.count({ where: { status: { in: ["SENDING", "SCHEDULED"] } } })
-  const recentCampaigns = await db.campaign.findMany({
-    orderBy: { updatedAt: "desc" },
-    take: 5,
-    include: { _count: { select: { content: true } } },
-  })
-  const recentContent = await db.content.findMany({
-    orderBy: { createdAt: "desc" },
-    take: 5,
-    select: { id: true, title: true, contentType: true, status: true, createdAt: true },
-  })
-  const recentMentions = await db.socialMention.findMany({
-    orderBy: { mentionedAt: "desc" },
-    take: 5,
-  })
+  // Run all queries in parallel for maximum speed
+  const [
+    campaignTotal,
+    campaignActive,
+    campaignBudget,
+    contentTotal,
+    contentPublished,
+    contentScheduled,
+    contentDrafts,
+    mentionTotal,
+    mentionPositive,
+    mentionNegative,
+    mentionNeutral,
+    leadTotal,
+    leadNew,
+    leadQualified,
+    leadConverted,
+    subscriberTotal,
+    emailActive,
+    recentCampaigns,
+    recentContent,
+    recentMentions,
+  ] = await Promise.all([
+    db.campaign.count(),
+    db.campaign.count({ where: { status: "ACTIVE" } }),
+    db.campaign.aggregate({
+      where: { status: { in: ["ACTIVE", "COMPLETED"] } },
+      _sum: { budget: true, spentAmount: true },
+    }),
+    db.content.count(),
+    db.content.count({ where: { status: "PUBLISHED" } }),
+    db.content.count({ where: { status: "SCHEDULED" } }),
+    db.content.count({ where: { status: "DRAFT" } }),
+    db.socialMention.count(),
+    db.socialMention.count({ where: { sentiment: "POSITIVE" } }),
+    db.socialMention.count({ where: { sentiment: "NEGATIVE" } }),
+    db.socialMention.count({ where: { sentiment: "NEUTRAL" } }),
+    db.lead.count(),
+    db.lead.count({ where: { createdAt: { gte: monthStart } } }),
+    db.lead.count({ where: { status: "QUALIFIED" } }),
+    db.lead.count({ where: { status: "WON" } }),
+    db.emailSubscriber.count({ where: { status: "ACTIVE" } }),
+    db.emailCampaign.count({ where: { status: { in: ["SENDING", "SCHEDULED"] } } }),
+    db.campaign.findMany({
+      orderBy: { updatedAt: "desc" },
+      take: 5,
+      include: { _count: { select: { content: true } } },
+    }),
+    db.content.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 5,
+      select: { id: true, title: true, contentType: true, status: true, createdAt: true },
+    }),
+    db.socialMention.findMany({
+      orderBy: { mentionedAt: "desc" },
+      take: 5,
+    }),
+  ])
 
   return {
     campaigns: {

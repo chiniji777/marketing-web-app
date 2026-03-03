@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { PageHeader } from "@/components/shared/page-header"
 import { StatCard } from "@/components/shared/stat-card"
@@ -141,6 +142,7 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
 }
 
 export default function AdsPage() {
+  const router = useRouter()
   const t = useTranslations()
   const [isLoading, setIsLoading] = useState(true)
   const [stats, setStats] = useState<Stats | null>(null)
@@ -407,12 +409,16 @@ export default function AdsPage() {
             const isFbCampaign = !!campaign.platformCampaignId
 
             return (
-              <Card key={campaign.id} className="transition-shadow hover:shadow-md">
+              <Card
+                key={campaign.id}
+                className="cursor-pointer transition-colors hover:bg-muted/50"
+                onClick={() => router.push(`/ads/${campaign.id}`)}
+              >
                 <CardContent className="pt-6">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <Link href={`/ads/${campaign.id}`} className="font-medium hover:underline">{campaign.name}</Link>
+                        <span className="font-medium">{campaign.name}</span>
                         <Badge variant={cfg.variant}>{cfg.label}</Badge>
                         <Badge variant="outline" className="gap-1">
                           {campaign.platform === "FACEBOOK" && <Facebook className="h-3 w-3" />}
@@ -454,7 +460,7 @@ export default function AdsPage() {
                           variant="ghost"
                           size="icon"
                           title="ดึงข้อมูล Facebook Insights"
-                          onClick={() => handleRefreshInsights(campaign.id)}
+                          onClick={(e) => { e.stopPropagation(); handleRefreshInsights(campaign.id) }}
                           disabled={refreshingInsights === campaign.id}
                         >
                           {refreshingInsights === campaign.id ? (
@@ -466,7 +472,7 @@ export default function AdsPage() {
                       )}
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
+                          <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}><MoreHorizontal className="h-4 w-4" /></Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           {campaign.status === "DRAFT" && (

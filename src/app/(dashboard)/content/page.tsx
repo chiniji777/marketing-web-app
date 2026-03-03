@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { PageHeader } from "@/components/shared/page-header"
 import { Button } from "@/components/ui/button"
@@ -87,6 +88,7 @@ interface ContentItem {
 }
 
 export default function ContentPage() {
+  const router = useRouter()
   const t = useTranslations()
   const [contents, setContents] = useState<ContentItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -273,17 +275,18 @@ export default function ContentPage() {
                   const updatedAt = new Date(content.updatedAt)
 
                   return (
-                    <TableRow key={content.id}>
+                    <TableRow
+                      key={content.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => router.push(`/content/${content.id}`)}
+                    >
                       <TableCell>
-                        <Link
-                          href={`/content/${content.id}`}
-                          className="group flex items-start gap-3"
-                        >
+                        <div className="flex items-start gap-3">
                           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded bg-muted">
                             <TypeIcon className="h-4 w-4 text-muted-foreground" />
                           </div>
                           <div className="min-w-0">
-                            <p className="truncate font-medium group-hover:underline">
+                            <p className="truncate font-medium">
                               {content.title}
                             </p>
                             <p className="line-clamp-1 text-xs text-muted-foreground">
@@ -294,7 +297,7 @@ export default function ContentPage() {
                           {content.aiGenerated && (
                             <Sparkles className="ml-1 mt-0.5 h-3 w-3 shrink-0 text-primary" />
                           )}
-                        </Link>
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="text-xs">
@@ -326,7 +329,7 @@ export default function ContentPage() {
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => e.stopPropagation()}>
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>

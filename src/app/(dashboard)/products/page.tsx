@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { PageHeader } from "@/components/shared/page-header"
 import { StatCard } from "@/components/shared/stat-card"
@@ -67,6 +68,7 @@ interface ProductRow {
 }
 
 export default function ProductsPage() {
+  const router = useRouter()
   const [products, setProducts] = useState<ProductRow[]>([])
   const [stats, setStats] = useState({ total: 0, active: 0, draft: 0, withAds: 0 })
   const [loading, setLoading] = useState(true)
@@ -190,13 +192,15 @@ export default function ProductsPage() {
           {products.map((product) => {
             const badgeInfo = STATUS_BADGE[product.status] || STATUS_BADGE.DRAFT
             return (
-              <Card key={product.id}>
+              <Card
+                key={product.id}
+                className="cursor-pointer transition-colors hover:bg-muted/50"
+                onClick={() => router.push(`/products/${product.id}`)}
+              >
                 <CardContent className="flex items-center justify-between p-4">
                   <div className="flex-1 space-y-1">
                     <div className="flex items-center gap-3">
-                      <Link href={`/products/${product.id}`} className="font-semibold hover:underline">
-                        {product.name}
-                      </Link>
+                      <span className="font-semibold">{product.name}</span>
                       <Badge variant={badgeInfo.variant}>{badgeInfo.label}</Badge>
                       {product.category && (
                         <Badge variant="outline">{product.category}</Badge>
@@ -218,7 +222,7 @@ export default function ProductsPage() {
 
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon">
+                      <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>

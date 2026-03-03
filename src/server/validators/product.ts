@@ -38,6 +38,29 @@ export const updateProductMarketingDataSchema = z.object({
   marketingDataScore: z.number().min(0).max(100).optional(),
 })
 
+export const createProductContentSchema = z.object({
+  productId: z.string(),
+  title: z.string().min(1),
+  body: z.string().min(1),
+  contentType: z.enum(["SOCIAL_POST", "BLOG_POST", "AD_COPY", "EMAIL", "LANDING_PAGE", "VIDEO_SCRIPT"]),
+  tone: z.string().optional(),
+  language: z.string().optional(),
+  aiGenerated: z.boolean().optional(),
+  aiPrompt: z.string().optional(),
+})
+
+export const createProductEmailCampaignSchema = z.object({
+  productId: z.string(),
+  name: z.string().min(1),
+  subject: z.string().min(1),
+  htmlContent: z.string().min(1),
+  textContent: z.string().optional(),
+  senderName: z.string().optional(),
+  senderEmail: z.string().email().optional(),
+})
+
 export type CreateProductInput = z.infer<typeof createProductSchema>
 export type UpdateProductInput = z.infer<typeof updateProductSchema>
 export type UpdateProductMarketingDataInput = z.infer<typeof updateProductMarketingDataSchema>
+export type CreateProductContentInput = z.infer<typeof createProductContentSchema>
+export type CreateProductEmailCampaignInput = z.infer<typeof createProductEmailCampaignSchema>

@@ -25,9 +25,12 @@ import {
   Megaphone,
   Layout,
   Sparkles,
+  GripVertical,
+  Package,
 } from "lucide-react"
 import { toast } from "sonner"
 import { getContents } from "@/server/actions/content"
+import { updateContentSchedule, getProductsSimple } from "@/server/actions/product"
 
 const TYPE_ICONS: Record<string, typeof FileText> = {
   SOCIAL_POST: Hash,
@@ -55,19 +58,30 @@ interface ContentEvent {
   scheduledAt: string | Date | null
   createdAt: string | Date
   aiGenerated: boolean
+  productId?: string | null
 }
 
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+interface SimpleProduct {
+  id: string
+  name: string
+  category: string | null
+  marketingDataScore: number
+}
+
+const WEEKDAYS = ["อา.", "จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส."]
 const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
+  "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+  "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม",
 ]
 
 export default function ContentCalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [contents, setContents] = useState<ContentEvent[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [view, setView] = useState<"month" | "week">("month")
+  const [draggedItem, setDraggedItem] = useState<ContentEvent | null>(null)
+  const [dropTarget, setDropTarget] = useState<string | null>(null)
+  const [filterProduct, setFilterProduct] = useState("")
+  const [products, setProducts] = useState<SimpleProduct[]>([])
 
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
@@ -78,7 +92,7 @@ export default function ContentCalendarPage() {
       const result = await getContents({ perPage: 200 })
       setContents(result.contents as unknown as ContentEvent[])
     } catch {
-      toast.error("Failed to load content")
+      toast.error("ไม่สามารถโหลดเนื้อหาได้")
     } finally {
       setIsLoading(false)
     }
@@ -86,15 +100,15 @@ export default function ContentCalendarPage() {
 
   useEffect(() => {
     fetchContents()
+    getProductsSimple().then((data) => setProducts(data as unknown as SimpleProduct[])).catch(() => {})
   }, [fetchContents])
 
   const calendarDays = useMemo(() => {
     const firstDay = new Date(year, month, 1)
-    const lastDay = new Date(year, month + 1, 0)
+    const days: Date[] = []
     const startDate = new Date(firstDay)
     startDate.setDate(startDate.getDate() - firstDay.getDay())
 
-    const days: Date[] = []
     const current = new Date(startDate)
     while (days.length < 42) {
       days.push(new Date(current))
@@ -104,9 +118,17 @@ export default function ContentCalendarPage() {
     return days
   }, [year, month])
 
+  // Filtered contents
+  const filteredContents = useMemo(() => {
+    if (!filterProduct) return contents
+    return contents.filter((c) => (c as ContentEvent & { productId?: string }).productId === filterProduct)
+  }, [contents, filterProduct])
+
+  // Events by date (scheduled/published only)
   const eventsByDate = useMemo(() => {
     const map = new Map<string, ContentEvent[]>()
-    for (const content of contents) {
+    for (const content of filteredContents) {
+      if (!content.scheduledAt && content.status !== "PUBLISHED") continue
       const date = content.scheduledAt
         ? new Date(content.scheduledAt)
         : new Date(content.createdAt)
@@ -116,19 +138,64 @@ export default function ContentCalendarPage() {
       map.set(key, existing)
     }
     return map
-  }, [contents])
+  }, [filteredContents])
 
-  const goToPreviousMonth = () => {
-    setCurrentDate(new Date(year, month - 1, 1))
+  // Sidebar: Approved/Draft content ready to schedule (not yet scheduled)
+  const readyToSchedule = useMemo(() => {
+    return filteredContents.filter(
+      (c) => (c.status === "APPROVED" || c.status === "DRAFT" || c.status === "PENDING_REVIEW") && !c.scheduledAt
+    )
+  }, [filteredContents])
+
+  // Drag & Drop handlers
+  const handleDragStart = (e: React.DragEvent, item: ContentEvent) => {
+    setDraggedItem(item)
+    e.dataTransfer.setData("text/plain", item.id)
+    e.dataTransfer.effectAllowed = "move"
   }
 
-  const goToNextMonth = () => {
-    setCurrentDate(new Date(year, month + 1, 1))
+  const handleDragOver = (e: React.DragEvent, dateKey: string) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = "move"
+    setDropTarget(dateKey)
   }
 
-  const goToToday = () => {
-    setCurrentDate(new Date())
+  const handleDragLeave = () => {
+    setDropTarget(null)
   }
+
+  const handleDrop = async (e: React.DragEvent, date: Date) => {
+    e.preventDefault()
+    setDropTarget(null)
+
+    if (!draggedItem) return
+
+    // Set to 9 AM on the dropped date
+    const scheduledAt = new Date(date)
+    scheduledAt.setHours(9, 0, 0, 0)
+
+    try {
+      await updateContentSchedule(draggedItem.id, scheduledAt.toISOString())
+      toast.success(`"${draggedItem.title}" ถูกกำหนดเวลาเรียบร้อย`)
+
+      // Update local state
+      setContents((prev) =>
+        prev.map((c) =>
+          c.id === draggedItem.id
+            ? { ...c, scheduledAt: scheduledAt.toISOString(), status: "SCHEDULED" }
+            : c
+        )
+      )
+    } catch {
+      toast.error("ไม่สามารถกำหนดเวลาได้")
+    } finally {
+      setDraggedItem(null)
+    }
+  }
+
+  const goToPreviousMonth = () => setCurrentDate(new Date(year, month - 1, 1))
+  const goToNextMonth = () => setCurrentDate(new Date(year, month + 1, 1))
+  const goToToday = () => setCurrentDate(new Date())
 
   const today = new Date()
   const isToday = (date: Date) =>
@@ -140,208 +207,246 @@ export default function ContentCalendarPage() {
     <div className="space-y-6">
       <PageHeader
         heading="Content Calendar"
-        description="Plan and schedule your content"
+        description="วางแผนและกำหนดเวลาโพสเนื้อหา — ลากเนื้อหาจากซ้ายไปวางในปฏิทิน"
       >
         <div className="flex items-center gap-2">
-          <Select value={view} onValueChange={(v) => setView(v as "month" | "week")}>
-            <SelectTrigger className="w-[120px]">
-              <SelectValue />
+          <Select value={filterProduct} onValueChange={setFilterProduct}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="ทุกสินค้า" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="month">Month</SelectItem>
-              <SelectItem value="week">Week</SelectItem>
+              <SelectItem value="">ทุกสินค้า</SelectItem>
+              {products.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  <Package className="mr-1 inline h-3 w-3" />
+                  {p.name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <Button variant="outline" asChild>
             <Link href="/content/generator">
               <Plus className="mr-2 h-4 w-4" />
-              New Content
+              สร้างเนื้อหา
             </Link>
           </Button>
         </div>
       </PageHeader>
 
-      {/* Calendar Navigation */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1">
-              <Button variant="outline" size="icon" onClick={goToPreviousMonth}>
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="icon" onClick={goToNextMonth}>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-            <h2 className="text-lg font-semibold">
-              {MONTHS[month]} {year}
-            </h2>
-            <Button variant="ghost" size="sm" onClick={goToToday}>
-              Today
-            </Button>
-          </div>
-
-          {/* Legend */}
-          <div className="hidden items-center gap-3 md:flex">
-            {[
-              { label: "Draft", color: "bg-gray-400" },
-              { label: "Scheduled", color: "bg-purple-500" },
-              { label: "Published", color: "bg-green-500" },
-            ].map((item) => (
-              <div key={item.label} className="flex items-center gap-1.5">
-                <div className={`h-2.5 w-2.5 rounded-full ${item.color}`} />
-                <span className="text-xs text-muted-foreground">{item.label}</span>
-              </div>
-            ))}
-          </div>
-        </CardHeader>
-
-        <CardContent>
-          {/* Weekday Headers */}
-          <div className="grid grid-cols-7 border-b">
-            {WEEKDAYS.map((day) => (
-              <div
-                key={day}
-                className="py-2 text-center text-xs font-medium text-muted-foreground"
-              >
-                {day}
-              </div>
-            ))}
-          </div>
-
-          {/* Calendar Grid */}
-          <div className="grid grid-cols-7">
-            {calendarDays.map((date, index) => {
-              const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
-              const dayEvents = eventsByDate.get(key) ?? []
-              const isCurrentMonth = date.getMonth() === month
-
-              return (
-                <div
-                  key={index}
-                  className={`min-h-[100px] border-b border-r p-1.5 ${
-                    !isCurrentMonth ? "bg-muted/30" : ""
-                  } ${index % 7 === 0 ? "border-l" : ""}`}
-                >
-                  <div
-                    className={`mb-1 flex h-6 w-6 items-center justify-center rounded-full text-xs ${
-                      isToday(date)
-                        ? "bg-primary font-bold text-primary-foreground"
-                        : isCurrentMonth
-                        ? "text-foreground"
-                        : "text-muted-foreground"
-                    }`}
-                  >
-                    {date.getDate()}
-                  </div>
-
-                  <div className="space-y-0.5">
-                    {dayEvents.slice(0, 3).map((event) => {
-                      const TypeIcon = TYPE_ICONS[event.contentType] ?? FileText
-                      return (
-                        <Link
-                          key={event.id}
-                          href={`/content/${event.id}`}
-                          className={`flex items-center gap-1 rounded px-1 py-0.5 text-xs transition-colors hover:opacity-80 ${
-                            STATUS_COLORS[event.status] ?? STATUS_COLORS.DRAFT
-                          }`}
-                        >
-                          <TypeIcon className="h-3 w-3 shrink-0" />
-                          <span className="truncate">{event.title}</span>
-                          {event.aiGenerated && (
-                            <Sparkles className="h-2.5 w-2.5 shrink-0" />
+      <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
+        {/* ─── Sidebar: Ready to Schedule ─── */}
+        <div className="space-y-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <GripVertical className="h-4 w-4" />
+                พร้อมกำหนดเวลา ({readyToSchedule.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {readyToSchedule.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  ไม่มีเนื้อหาที่พร้อม — สร้างเนื้อหาใหม่แล้วมาวางแผนได้
+                </p>
+              ) : (
+                readyToSchedule.map((item) => {
+                  const TypeIcon = TYPE_ICONS[item.contentType] ?? FileText
+                  return (
+                    <div
+                      key={item.id}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, item)}
+                      className={`flex cursor-grab items-center gap-2 rounded-lg border p-2 transition-colors hover:bg-muted/50 active:cursor-grabbing ${
+                        STATUS_COLORS[item.status] ?? STATUS_COLORS.DRAFT
+                      }`}
+                    >
+                      <GripVertical className="h-3 w-3 shrink-0 opacity-50" />
+                      <TypeIcon className="h-3.5 w-3.5 shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-medium">{item.title}</p>
+                        <div className="flex items-center gap-1">
+                          <span className="text-[10px] opacity-70">
+                            {item.contentType.replace("_", " ")}
+                          </span>
+                          {item.aiGenerated && (
+                            <Sparkles className="h-2.5 w-2.5" />
                           )}
-                        </Link>
-                      )
-                    })}
-                    {dayEvents.length > 3 && (
-                      <p className="px-1 text-xs text-muted-foreground">
-                        +{dayEvents.length - 3} more
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </CardContent>
-      </Card>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+            </CardContent>
+          </Card>
 
-      {/* Upcoming Content */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <CalendarIcon className="h-4 w-4" />
-            Upcoming Scheduled Content
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <p className="text-sm text-muted-foreground">Loading...</p>
-          ) : (
-            (() => {
-              const scheduled = contents
-                .filter(
-                  (c) =>
-                    c.scheduledAt &&
-                    new Date(c.scheduledAt) >= today &&
-                    (c.status === "SCHEDULED" || c.status === "APPROVED")
-                )
-                .sort(
-                  (a, b) =>
-                    new Date(a.scheduledAt!).getTime() -
-                    new Date(b.scheduledAt!).getTime()
-                )
-                .slice(0, 5)
+          {/* Upcoming */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <CalendarIcon className="h-4 w-4" />
+                กำหนดการที่จะมาถึง
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {(() => {
+                const scheduled = filteredContents
+                  .filter(
+                    (c) =>
+                      c.scheduledAt &&
+                      new Date(c.scheduledAt) >= today &&
+                      (c.status === "SCHEDULED" || c.status === "APPROVED")
+                  )
+                  .sort(
+                    (a, b) =>
+                      new Date(a.scheduledAt!).getTime() -
+                      new Date(b.scheduledAt!).getTime()
+                  )
+                  .slice(0, 5)
 
-              if (scheduled.length === 0) {
+                if (scheduled.length === 0) {
+                  return (
+                    <p className="text-xs text-muted-foreground">
+                      ยังไม่มีเนื้อหาที่กำหนดเวลา
+                    </p>
+                  )
+                }
+
                 return (
-                  <p className="text-sm text-muted-foreground">
-                    No upcoming scheduled content. Create content and schedule it
-                    to see it here.
-                  </p>
-                )
-              }
-
-              return (
-                <div className="space-y-3">
-                  {scheduled.map((content) => {
-                    const TypeIcon = TYPE_ICONS[content.contentType] ?? FileText
-                    return (
+                  <div className="space-y-2">
+                    {scheduled.map((content) => (
                       <Link
                         key={content.id}
                         href={`/content/${content.id}`}
-                        className="flex items-center justify-between rounded-lg border p-3 transition-colors hover:bg-muted/50"
+                        className="block rounded-lg border p-2 text-xs transition-colors hover:bg-muted/50"
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-8 w-8 items-center justify-center rounded bg-muted">
-                            <TypeIcon className="h-4 w-4 text-muted-foreground" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium">{content.title}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {new Date(content.scheduledAt!).toLocaleDateString("en-US", {
-                                weekday: "short",
-                                month: "short",
-                                day: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </p>
-                          </div>
-                        </div>
-                        <Badge variant="outline" className="text-xs">
-                          {content.status}
-                        </Badge>
+                        <p className="truncate font-medium">{content.title}</p>
+                        <p className="text-muted-foreground">
+                          {new Date(content.scheduledAt!).toLocaleDateString("th-TH", {
+                            weekday: "short",
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </p>
                       </Link>
-                    )
-                  })}
+                    ))}
+                  </div>
+                )
+              })()}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* ─── Calendar Grid ─── */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-1">
+                <Button variant="outline" size="icon" onClick={goToPreviousMonth}>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" size="icon" onClick={goToNextMonth}>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+              <h2 className="text-lg font-semibold">
+                {MONTHS[month]} {year + 543}
+              </h2>
+              <Button variant="ghost" size="sm" onClick={goToToday}>
+                วันนี้
+              </Button>
+            </div>
+
+            <div className="hidden items-center gap-3 md:flex">
+              {[
+                { label: "แบบร่าง", color: "bg-gray-400" },
+                { label: "กำหนดเวลา", color: "bg-purple-500" },
+                { label: "เผยแพร่แล้ว", color: "bg-green-500" },
+              ].map((item) => (
+                <div key={item.label} className="flex items-center gap-1.5">
+                  <div className={`h-2.5 w-2.5 rounded-full ${item.color}`} />
+                  <span className="text-xs text-muted-foreground">{item.label}</span>
                 </div>
-              )
-            })()
-          )}
-        </CardContent>
-      </Card>
+              ))}
+            </div>
+          </CardHeader>
+
+          <CardContent>
+            {/* Weekday Headers */}
+            <div className="grid grid-cols-7 border-b">
+              {WEEKDAYS.map((day) => (
+                <div key={day} className="py-2 text-center text-xs font-medium text-muted-foreground">
+                  {day}
+                </div>
+              ))}
+            </div>
+
+            {/* Calendar Grid */}
+            <div className="grid grid-cols-7">
+              {calendarDays.map((date, index) => {
+                const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
+                const dayEvents = eventsByDate.get(key) ?? []
+                const isCurrentMonth = date.getMonth() === month
+                const isDropping = dropTarget === key
+
+                return (
+                  <div
+                    key={index}
+                    className={`min-h-[100px] border-b border-r p-1.5 transition-colors ${
+                      !isCurrentMonth ? "bg-muted/30" : ""
+                    } ${index % 7 === 0 ? "border-l" : ""} ${
+                      isDropping ? "bg-primary/10 ring-2 ring-primary/30 ring-inset" : ""
+                    }`}
+                    onDragOver={(e) => handleDragOver(e, key)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, date)}
+                  >
+                    <div
+                      className={`mb-1 flex h-6 w-6 items-center justify-center rounded-full text-xs ${
+                        isToday(date)
+                          ? "bg-primary font-bold text-primary-foreground"
+                          : isCurrentMonth
+                          ? "text-foreground"
+                          : "text-muted-foreground"
+                      }`}
+                    >
+                      {date.getDate()}
+                    </div>
+
+                    <div className="space-y-0.5">
+                      {dayEvents.slice(0, 3).map((event) => {
+                        const TypeIcon = TYPE_ICONS[event.contentType] ?? FileText
+                        return (
+                          <Link
+                            key={event.id}
+                            href={`/content/${event.id}`}
+                            className={`flex items-center gap-1 rounded px-1 py-0.5 text-xs transition-colors hover:opacity-80 ${
+                              STATUS_COLORS[event.status] ?? STATUS_COLORS.DRAFT
+                            }`}
+                          >
+                            <TypeIcon className="h-3 w-3 shrink-0" />
+                            <span className="truncate">{event.title}</span>
+                            {event.aiGenerated && (
+                              <Sparkles className="h-2.5 w-2.5 shrink-0" />
+                            )}
+                          </Link>
+                        )
+                      })}
+                      {dayEvents.length > 3 && (
+                        <p className="px-1 text-xs text-muted-foreground">
+                          +{dayEvents.length - 3} เพิ่มเติม
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }

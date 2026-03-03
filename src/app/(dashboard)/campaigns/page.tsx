@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { PageHeader } from "@/components/shared/page-header"
 import { Button } from "@/components/ui/button"
@@ -113,6 +114,7 @@ interface Summary {
 }
 
 export default function CampaignsPage() {
+  const router = useRouter()
   const t = useTranslations()
   const [campaigns, setCampaigns] = useState<CampaignItem[]>([])
   const [summary, setSummary] = useState<Summary | null>(null)
@@ -264,14 +266,16 @@ export default function CampaignsPage() {
             const budgetPct = getBudgetPercent(campaign.spentAmount, campaign.budget)
 
             return (
-              <Card key={campaign.id} className="transition-shadow hover:shadow-md">
+              <Card
+                key={campaign.id}
+                className="cursor-pointer transition-colors hover:bg-muted/50"
+                onClick={() => router.push(`/campaigns/${campaign.id}`)}
+              >
                 <CardContent className="pt-6">
                   <div className="flex items-start justify-between">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-3">
-                        <Link href={`/campaigns/${campaign.id}`} className="text-lg font-semibold hover:underline">
-                          {campaign.name}
-                        </Link>
+                        <span className="text-lg font-semibold">{campaign.name}</span>
                         <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>
                         <Badge variant="outline" className="text-xs">
                           {TYPE_LABELS[campaign.type] ?? campaign.type}
@@ -328,7 +332,7 @@ export default function CampaignsPage() {
 
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="shrink-0">
+                        <Button variant="ghost" size="icon" className="shrink-0" onClick={(e) => e.stopPropagation()}>
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>

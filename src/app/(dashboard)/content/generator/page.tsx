@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { Suspense, useState, useCallback, useEffect } from "react"
 import { useCompletion } from "@ai-sdk/react"
+import { useSearchParams } from "next/navigation"
 import { PageHeader } from "@/components/shared/page-header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -36,9 +37,11 @@ import {
   Megaphone,
   Layout,
   Hash,
+  Package,
 } from "lucide-react"
 import { toast } from "sonner"
 import { createContent } from "@/server/actions/content"
+import { getProductsSimple, createProductContent } from "@/server/actions/product"
 
 const CONTENT_TYPES = [
   { value: "SOCIAL_POST", label: "Social Post", icon: Hash },
@@ -78,18 +81,46 @@ const LANGUAGES = [
   { value: "fr", label: "French" },
 ]
 
+interface SimpleProduct {
+  id: string
+  name: string
+  category: string | null
+  marketingDataScore: number
+}
+
 export default function ContentGeneratorPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center py-12"><Sparkles className="h-8 w-8 animate-pulse text-muted-foreground" /></div>}>
+      <ContentGeneratorInner />
+    </Suspense>
+  )
+}
+
+function ContentGeneratorInner() {
+  const searchParams = useSearchParams()
+  const initialProductId = searchParams.get("productId") || ""
+
   const [contentType, setContentType] = useState("SOCIAL_POST")
   const [topic, setTopic] = useState("")
   const [tone, setTone] = useState("professional")
   const [platform, setPlatform] = useState("general")
-  const [language, setLanguage] = useState("en")
+  const [language, setLanguage] = useState("th")
   const [keywords, setKeywords] = useState("")
   const [additionalInstructions, setAdditionalInstructions] = useState("")
   const [isSaving, setIsSaving] = useState(false)
   const [generationHistory, setGenerationHistory] = useState<
     Array<{ content: string; type: string; timestamp: Date }>
   >([])
+
+  // Product selector
+  const [products, setProducts] = useState<SimpleProduct[]>([])
+  const [selectedProductId, setSelectedProductId] = useState(initialProductId)
+
+  useEffect(() => {
+    getProductsSimple().then((data) => {
+      setProducts(data as unknown as SimpleProduct[])
+    }).catch(() => {})
+  }, [])
 
   const { completion, complete, isLoading, stop } = useCompletion({
     api: "/api/ai/generate",
@@ -106,7 +137,7 @@ export default function ContentGeneratorPage() {
 
   const handleGenerate = useCallback(async () => {
     if (!topic.trim()) {
-      toast.error("Please enter a topic")
+      toast.error("กรุณาใส่หัวข้อ")
       return
     }
 
@@ -119,14 +150,15 @@ export default function ContentGeneratorPage() {
         platform: contentType === "SOCIAL_POST" ? platform : undefined,
         keywords: keywords || undefined,
         additionalInstructions: additionalInstructions || undefined,
+        productId: selectedProductId || undefined,
       },
     })
-  }, [contentType, topic, tone, language, platform, keywords, additionalInstructions, complete])
+  }, [contentType, topic, tone, language, platform, keywords, additionalInstructions, selectedProductId, complete])
 
   const handleCopy = useCallback(async () => {
     if (!completion) return
     await navigator.clipboard.writeText(completion)
-    toast.success("Copied to clipboard")
+    toast.success("คัดลอกแล้ว")
   }, [completion])
 
   const handleSave = useCallback(async () => {
@@ -135,22 +167,38 @@ export default function ContentGeneratorPage() {
     try {
       const title =
         topic.length > 100 ? topic.substring(0, 100) + "..." : topic
-      await createContent({
-        title: `AI: ${title}`,
-        body: completion,
-        contentType: contentType as "SOCIAL_POST" | "BLOG_POST" | "AD_COPY" | "EMAIL" | "LANDING_PAGE" | "VIDEO_SCRIPT",
-        tone,
-        language,
-        aiGenerated: true,
-        aiPrompt: topic,
-      })
-      toast.success("Content saved to your library")
+
+      if (selectedProductId) {
+        // Save linked to product
+        await createProductContent({
+          productId: selectedProductId,
+          title: `AI: ${title}`,
+          body: completion,
+          contentType: contentType as "SOCIAL_POST" | "BLOG_POST" | "AD_COPY" | "EMAIL" | "LANDING_PAGE" | "VIDEO_SCRIPT",
+          tone,
+          language,
+          aiGenerated: true,
+          aiPrompt: topic,
+        })
+      } else {
+        // Save without product
+        await createContent({
+          title: `AI: ${title}`,
+          body: completion,
+          contentType: contentType as "SOCIAL_POST" | "BLOG_POST" | "AD_COPY" | "EMAIL" | "LANDING_PAGE" | "VIDEO_SCRIPT",
+          tone,
+          language,
+          aiGenerated: true,
+          aiPrompt: topic,
+        })
+      }
+      toast.success("บันทึกเนื้อหาเรียบร้อย")
     } catch {
-      toast.error("Failed to save content")
+      toast.error("ไม่สามารถบันทึกได้")
     } finally {
       setIsSaving(false)
     }
-  }, [completion, topic, contentType, tone, language])
+  }, [completion, topic, contentType, tone, language, selectedProductId])
 
   const handleReset = useCallback(() => {
     setTopic("")
@@ -167,13 +215,13 @@ export default function ContentGeneratorPage() {
     <div className="space-y-6">
       <PageHeader
         heading="AI Content Generator"
-        description="Create marketing content powered by AI"
+        description="สร้างเนื้อหาการตลาดด้วย AI"
       >
         {completion && (
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={handleCopy}>
               <Copy className="mr-2 h-4 w-4" />
-              Copy
+              คัดลอก
             </Button>
             <Button size="sm" onClick={handleSave} disabled={isSaving}>
               {isSaving ? (
@@ -181,7 +229,7 @@ export default function ContentGeneratorPage() {
               ) : (
                 <Save className="mr-2 h-4 w-4" />
               )}
-              Save to Library
+              บันทึก
             </Button>
           </div>
         )}
@@ -194,12 +242,41 @@ export default function ContentGeneratorPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <Wand2 className="h-4 w-4" />
-                Content Settings
+                ตั้งค่าเนื้อหา
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Product Selector */}
               <div className="space-y-2">
-                <Label>Content Type</Label>
+                <Label className="flex items-center gap-2">
+                  <Package className="h-3.5 w-3.5" />
+                  เลือกสินค้า (ไม่บังคับ)
+                </Label>
+                <Select value={selectedProductId} onValueChange={setSelectedProductId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="เลือกสินค้า..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">ไม่ระบุสินค้า</SelectItem>
+                    {products.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name} {p.category ? `(${p.category})` : ""}
+                        {p.marketingDataScore > 0 && ` — ${p.marketingDataScore}%`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedProductId && (
+                  <p className="text-xs text-muted-foreground">
+                    เนื้อหาจะถูกเชื่อมกับสินค้านี้ + AI จะใช้ข้อมูลการตลาดของสินค้าเป็น context
+                  </p>
+                )}
+              </div>
+
+              <Separator />
+
+              <div className="space-y-2">
+                <Label>ประเภทเนื้อหา</Label>
                 <div className="grid grid-cols-2 gap-2">
                   {CONTENT_TYPES.map((type) => (
                     <Button
@@ -219,10 +296,10 @@ export default function ContentGeneratorPage() {
               <Separator />
 
               <div className="space-y-2">
-                <Label htmlFor="topic">Topic / Brief *</Label>
+                <Label htmlFor="topic">หัวข้อ / Brief *</Label>
                 <Textarea
                   id="topic"
-                  placeholder="e.g., Launch of our new eco-friendly water bottle for health-conscious millennials..."
+                  placeholder="เช่น โปรโมทครีมกันแดดตัวใหม่ SPF50+ สำหรับสาวออฟฟิศ..."
                   value={topic}
                   onChange={(e) => setTopic(e.target.value)}
                   rows={3}
@@ -230,7 +307,7 @@ export default function ContentGeneratorPage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Tone</Label>
+                <Label>โทนเสียง</Label>
                 <Select value={tone} onValueChange={setTone}>
                   <SelectTrigger>
                     <SelectValue />
@@ -247,7 +324,7 @@ export default function ContentGeneratorPage() {
 
               {contentType === "SOCIAL_POST" && (
                 <div className="space-y-2">
-                  <Label>Platform</Label>
+                  <Label>แพลตฟอร์ม</Label>
                   <div className="grid grid-cols-3 gap-2">
                     {PLATFORMS.map((p) => (
                       <Button
@@ -265,7 +342,7 @@ export default function ContentGeneratorPage() {
               )}
 
               <div className="space-y-2">
-                <Label>Language</Label>
+                <Label>ภาษา</Label>
                 <Select value={language} onValueChange={setLanguage}>
                   <SelectTrigger>
                     <SelectValue />
@@ -281,20 +358,20 @@ export default function ContentGeneratorPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="keywords">Keywords (optional)</Label>
+                <Label htmlFor="keywords">Keywords (ไม่บังคับ)</Label>
                 <Input
                   id="keywords"
-                  placeholder="e.g., sustainable, eco-friendly, BPA-free"
+                  placeholder="เช่น ครีมกันแดด, SPF50, ผิวขาว"
                   value={keywords}
                   onChange={(e) => setKeywords(e.target.value)}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="instructions">Additional Instructions (optional)</Label>
+                <Label htmlFor="instructions">คำสั่งเพิ่มเติม (ไม่บังคับ)</Label>
                 <Textarea
                   id="instructions"
-                  placeholder="e.g., Include a call-to-action for 20% off..."
+                  placeholder="เช่น ใส่ CTA ลด 20% เฉพาะสัปดาห์นี้..."
                   value={additionalInstructions}
                   onChange={(e) => setAdditionalInstructions(e.target.value)}
                   rows={2}
@@ -310,18 +387,18 @@ export default function ContentGeneratorPage() {
                   {isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Generating...
+                      กำลังสร้าง...
                     </>
                   ) : (
                     <>
                       <Sparkles className="mr-2 h-4 w-4" />
-                      Generate
+                      สร้างเนื้อหา
                     </>
                   )}
                 </Button>
                 {isLoading && (
                   <Button variant="outline" onClick={stop}>
-                    Stop
+                    หยุด
                   </Button>
                 )}
                 <Button variant="ghost" size="icon" onClick={handleReset}>
@@ -336,9 +413,9 @@ export default function ContentGeneratorPage() {
         <div className="space-y-6 lg:col-span-3">
           <Tabs defaultValue="output">
             <TabsList>
-              <TabsTrigger value="output">Output</TabsTrigger>
+              <TabsTrigger value="output">ผลลัพธ์</TabsTrigger>
               <TabsTrigger value="history">
-                History
+                ประวัติ
                 {generationHistory.length > 0 && (
                   <Badge variant="secondary" className="ml-2">
                     {generationHistory.length}
@@ -350,11 +427,11 @@ export default function ContentGeneratorPage() {
             <TabsContent value="output">
               <Card className="min-h-[500px]">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-                  <CardTitle className="text-base">Generated Content</CardTitle>
+                  <CardTitle className="text-base">เนื้อหาที่สร้าง</CardTitle>
                   {completion && (
                     <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                      <span>{wordCount} words</span>
-                      <span>{charCount} chars</span>
+                      <span>{wordCount} คำ</span>
+                      <span>{charCount} ตัวอักษร</span>
                     </div>
                   )}
                 </CardHeader>
@@ -367,7 +444,7 @@ export default function ContentGeneratorPage() {
                     <div className="flex flex-col items-center justify-center py-16">
                       <Sparkles className="h-8 w-8 animate-pulse text-primary" />
                       <p className="mt-4 text-sm text-muted-foreground">
-                        AI is crafting your content...
+                        AI กำลังเขียนเนื้อหา...
                       </p>
                     </div>
                   ) : (
@@ -376,11 +453,10 @@ export default function ContentGeneratorPage() {
                         <Sparkles className="h-6 w-6 text-muted-foreground" />
                       </div>
                       <h3 className="mt-4 text-lg font-semibold">
-                        Ready to generate
+                        พร้อมสร้างเนื้อหา
                       </h3>
                       <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-                        Fill in the settings on the left and click Generate to
-                        create AI-powered marketing content.
+                        ตั้งค่าด้านซ้าย แล้วกดสร้างเนื้อหาเพื่อให้ AI เขียนให้
                       </p>
                     </div>
                   )}
@@ -391,13 +467,13 @@ export default function ContentGeneratorPage() {
             <TabsContent value="history">
               <Card className="min-h-[500px]">
                 <CardHeader>
-                  <CardTitle className="text-base">Generation History</CardTitle>
+                  <CardTitle className="text-base">ประวัติการสร้าง</CardTitle>
                 </CardHeader>
                 <CardContent>
                   {generationHistory.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-16 text-center">
                       <p className="text-sm text-muted-foreground">
-                        Your generation history will appear here
+                        ประวัติการสร้างจะแสดงที่นี่
                       </p>
                     </div>
                   ) : (
@@ -420,11 +496,11 @@ export default function ContentGeneratorPage() {
                             className="mt-2"
                             onClick={async () => {
                               await navigator.clipboard.writeText(item.content)
-                              toast.success("Copied to clipboard")
+                              toast.success("คัดลอกแล้ว")
                             }}
                           >
                             <Copy className="mr-2 h-3 w-3" />
-                            Copy
+                            คัดลอก
                           </Button>
                         </div>
                       ))}

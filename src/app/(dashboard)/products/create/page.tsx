@@ -126,7 +126,10 @@ export default function CreateProductPage() {
           const data = JSON.parse(jsonMatch[1]) as MarketingData
           setMarketingData(data)
         } catch {
-          // JSON parse failed, ignore
+          toast.error("ไม่สามารถอ่านข้อมูลจาก AI ได้ ลองถามใหม่อีกครั้ง")
+          // Calculate a basic score from what fields exist in the conversation
+          const basicData: MarketingData = { marketingDataScore: 0 }
+          setMarketingData(basicData)
         }
       }
     } catch {

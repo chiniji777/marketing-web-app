@@ -35,7 +35,7 @@ export function getConnectionString(): string {
 
 function createPrismaClient() {
   const connectionString = getConnectionString()
-  const adapter = new PrismaPg({ connectionString, max: 10 })
+  const adapter = new PrismaPg({ connectionString, max: 20 })
   return new PrismaClient({ adapter })
 }
 
