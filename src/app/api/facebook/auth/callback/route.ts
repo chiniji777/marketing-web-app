@@ -4,6 +4,7 @@ import {
   exchangeForLongLivedToken,
   getFacebookUser,
   getAdAccounts,
+  getPages,
 } from "@/lib/facebook"
 import { NextRequest, NextResponse } from "next/server"
 
@@ -13,25 +14,27 @@ export async function GET(req: NextRequest) {
   const stateParam = searchParams.get("state")
   const error = searchParams.get("error")
 
+  // Decode state first to get returnTo
+  let stateData: { organizationId: string; userId: string; returnTo?: string }
+  try {
+    stateData = stateParam
+      ? JSON.parse(Buffer.from(stateParam, "base64url").toString())
+      : { organizationId: "", userId: "" }
+  } catch {
+    stateData = { organizationId: "", userId: "" }
+  }
+
+  const returnTo = stateData.returnTo || "/ads"
+
   if (error) {
     return NextResponse.redirect(
-      new URL(`/ads?error=${encodeURIComponent(error)}`, req.nextUrl.origin)
+      new URL(`${returnTo}?error=${encodeURIComponent(error)}`, req.nextUrl.origin)
     )
   }
 
-  if (!code || !stateParam) {
+  if (!code || !stateParam || !stateData.organizationId) {
     return NextResponse.redirect(
-      new URL("/ads?error=missing_params", req.nextUrl.origin)
-    )
-  }
-
-  // Decode state
-  let stateData: { organizationId: string; userId: string }
-  try {
-    stateData = JSON.parse(Buffer.from(stateParam, "base64url").toString())
-  } catch {
-    return NextResponse.redirect(
-      new URL("/ads?error=invalid_state", req.nextUrl.origin)
+      new URL(`${returnTo}?error=missing_params`, req.nextUrl.origin)
     )
   }
 
@@ -48,12 +51,21 @@ export async function GET(req: NextRequest) {
     const longTokenRes = await exchangeForLongLivedToken(shortTokenRes.access_token)
     const accessToken = longTokenRes.access_token
     const expiresIn = longTokenRes.expires_in || 5184000 // default 60 days
+    const tokenExpiresAt = new Date(Date.now() + expiresIn * 1000)
 
     // Get Facebook user info
     const fbUser = await getFacebookUser(accessToken)
 
     // Get ad accounts
     const adAccounts = await getAdAccounts(accessToken)
+
+    // Get Facebook Pages (for publishing + Instagram detection)
+    let pages: Array<{ id: string; name: string; accessToken: string }> = []
+    try {
+      pages = await getPages(accessToken)
+    } catch {
+      // Pages access may not be available — non-fatal
+    }
 
     // Upsert SocialAccount for Facebook connection
     const socialAccount = await prisma.socialAccount.upsert({
@@ -66,10 +78,15 @@ export async function GET(req: NextRequest) {
       },
       update: {
         accessToken,
-        tokenExpiresAt: new Date(Date.now() + expiresIn * 1000),
+        tokenExpiresAt,
         accountName: fbUser.name,
         isActive: true,
-        metadata: { email: fbUser.email, adAccountCount: adAccounts.length },
+        metadata: {
+          email: fbUser.email,
+          adAccountCount: adAccounts.length,
+          pages: pages.map((p) => ({ id: p.id, name: p.name })),
+          pageId: pages[0]?.id || null,
+        },
       },
       create: {
         organizationId,
@@ -77,8 +94,13 @@ export async function GET(req: NextRequest) {
         platformAccountId: fbUser.id,
         accountName: fbUser.name,
         accessToken,
-        tokenExpiresAt: new Date(Date.now() + expiresIn * 1000),
-        metadata: { email: fbUser.email, adAccountCount: adAccounts.length },
+        tokenExpiresAt,
+        metadata: {
+          email: fbUser.email,
+          adAccountCount: adAccounts.length,
+          pages: pages.map((p) => ({ id: p.id, name: p.name })),
+          pageId: pages[0]?.id || null,
+        },
       },
     })
 
@@ -114,26 +136,95 @@ export async function GET(req: NextRequest) {
       })
     }
 
+    // Auto-detect Instagram Business accounts linked to Facebook Pages
+    let igAccountsFound = 0
+    for (const page of pages) {
+      try {
+        const igRes = await fetch(
+          `https://graph.facebook.com/v24.0/${page.id}?fields=instagram_business_account{id,username,name,profile_picture_url}&access_token=${page.accessToken}`
+        )
+        if (igRes.ok) {
+          const igData = await igRes.json()
+          const igAccount = igData.instagram_business_account
+          if (igAccount) {
+            await prisma.socialAccount.upsert({
+              where: {
+                organizationId_platform_platformAccountId: {
+                  organizationId,
+                  platform: "INSTAGRAM",
+                  platformAccountId: igAccount.id,
+                },
+              },
+              update: {
+                accessToken, // Uses same Facebook user token
+                tokenExpiresAt,
+                accountName: igAccount.username || igAccount.name || `IG - ${page.name}`,
+                isActive: true,
+                metadata: {
+                  igUserId: igAccount.id,
+                  username: igAccount.username,
+                  profilePicture: igAccount.profile_picture_url,
+                  linkedFacebookPageId: page.id,
+                  linkedFacebookPageName: page.name,
+                },
+              },
+              create: {
+                organizationId,
+                platform: "INSTAGRAM",
+                platformAccountId: igAccount.id,
+                accountName: igAccount.username || igAccount.name || `IG - ${page.name}`,
+                accessToken,
+                tokenExpiresAt,
+                metadata: {
+                  igUserId: igAccount.id,
+                  username: igAccount.username,
+                  profilePicture: igAccount.profile_picture_url,
+                  linkedFacebookPageId: page.id,
+                  linkedFacebookPageName: page.name,
+                },
+              },
+            })
+            igAccountsFound++
+          }
+        }
+      } catch {
+        // Instagram detection for this page failed — non-fatal
+      }
+    }
+
     // Log activity
     await prisma.activityLog.create({
       data: {
         organizationId,
         userId,
-        action: "CONNECTED_FACEBOOK_ADS",
+        action: "CONNECTED_FACEBOOK",
         entityType: "SocialAccount",
         entityId: socialAccount.id,
-        metadata: { adAccountsFound: adAccounts.length },
+        metadata: {
+          adAccountsFound: adAccounts.length,
+          pagesFound: pages.length,
+          igAccountsFound,
+        },
       },
     })
 
+    const params = new URLSearchParams({
+      connected: "facebook",
+      accounts: String(adAccounts.length),
+      pages: String(pages.length),
+    })
+    if (igAccountsFound > 0) {
+      params.set("instagram", String(igAccountsFound))
+    }
+
     return NextResponse.redirect(
-      new URL(`/ads?connected=true&accounts=${adAccounts.length}`, req.nextUrl.origin)
+      new URL(`${returnTo}?${params.toString()}`, req.nextUrl.origin)
     )
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error"
     console.error("Facebook OAuth callback error:", message)
     return NextResponse.redirect(
-      new URL(`/ads?error=${encodeURIComponent(message)}`, req.nextUrl.origin)
+      new URL(`${returnTo}?error=${encodeURIComponent(message)}`, req.nextUrl.origin)
     )
   }
 }
