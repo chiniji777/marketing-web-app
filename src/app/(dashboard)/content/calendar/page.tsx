@@ -80,7 +80,7 @@ export default function ContentCalendarPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [draggedItem, setDraggedItem] = useState<ContentEvent | null>(null)
   const [dropTarget, setDropTarget] = useState<string | null>(null)
-  const [filterProduct, setFilterProduct] = useState("")
+  const [filterProduct, setFilterProduct] = useState("all")
   const [products, setProducts] = useState<SimpleProduct[]>([])
 
   const year = currentDate.getFullYear()
@@ -120,7 +120,7 @@ export default function ContentCalendarPage() {
 
   // Filtered contents
   const filteredContents = useMemo(() => {
-    if (!filterProduct) return contents
+    if (filterProduct === "all") return contents
     return contents.filter((c) => (c as ContentEvent & { productId?: string }).productId === filterProduct)
   }, [contents, filterProduct])
 
@@ -215,7 +215,7 @@ export default function ContentCalendarPage() {
               <SelectValue placeholder="ทุกสินค้า" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">ทุกสินค้า</SelectItem>
+              <SelectItem value="all">ทุกสินค้า</SelectItem>
               {products.map((p) => (
                 <SelectItem key={p.id} value={p.id}>
                   <Package className="mr-1 inline h-3 w-3" />

@@ -114,7 +114,7 @@ function ContentGeneratorInner() {
 
   // Product selector
   const [products, setProducts] = useState<SimpleProduct[]>([])
-  const [selectedProductId, setSelectedProductId] = useState(initialProductId)
+  const [selectedProductId, setSelectedProductId] = useState(initialProductId || "none")
 
   useEffect(() => {
     getProductsSimple().then((data) => {
@@ -150,7 +150,7 @@ function ContentGeneratorInner() {
         platform: contentType === "SOCIAL_POST" ? platform : undefined,
         keywords: keywords || undefined,
         additionalInstructions: additionalInstructions || undefined,
-        productId: selectedProductId || undefined,
+        productId: selectedProductId !== "none" ? selectedProductId : undefined,
       },
     })
   }, [contentType, topic, tone, language, platform, keywords, additionalInstructions, selectedProductId, complete])
@@ -168,7 +168,7 @@ function ContentGeneratorInner() {
       const title =
         topic.length > 100 ? topic.substring(0, 100) + "..." : topic
 
-      if (selectedProductId) {
+      if (selectedProductId && selectedProductId !== "none") {
         // Save linked to product
         await createProductContent({
           productId: selectedProductId,
@@ -257,7 +257,7 @@ function ContentGeneratorInner() {
                     <SelectValue placeholder="เลือกสินค้า..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">ไม่ระบุสินค้า</SelectItem>
+                    <SelectItem value="none">ไม่ระบุสินค้า</SelectItem>
                     {products.map((p) => (
                       <SelectItem key={p.id} value={p.id}>
                         {p.name} {p.category ? `(${p.category})` : ""}
@@ -266,7 +266,7 @@ function ContentGeneratorInner() {
                     ))}
                   </SelectContent>
                 </Select>
-                {selectedProductId && (
+                {selectedProductId !== "none" && (
                   <p className="text-xs text-muted-foreground">
                     เนื้อหาจะถูกเชื่อมกับสินค้านี้ + AI จะใช้ข้อมูลการตลาดของสินค้าเป็น context
                   </p>
