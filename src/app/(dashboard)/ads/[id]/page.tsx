@@ -38,7 +38,6 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
-  ArrowLeft,
   Play,
   Pause,
   RefreshCw,
@@ -532,54 +531,46 @@ export default function CampaignDetailPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" asChild>
-            <Link href="/ads"><ArrowLeft className="h-4 w-4" /></Link>
-          </Button>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold">{campaign.name}</h1>
-              <Badge variant={cfg.variant}>{cfg.label}</Badge>
-              {isFb && (
-                <Badge variant="outline" className="gap-1 border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-400">
-                  <Facebook className="h-3 w-3" />Facebook API
-                </Badge>
-              )}
-            </div>
-            <p className="text-sm text-muted-foreground mt-1">
-              {campaign.objective.toLowerCase().replace(/_/g, " ")}
-              {campaign.facebookAdAccount ? ` · ${campaign.facebookAdAccount.adAccountName}` : ""}
-            </p>
-          </div>
+      <PageHeader
+        heading={campaign.name}
+        description={`${campaign.objective.toLowerCase().replace(/_/g, " ")}${campaign.facebookAdAccount ? ` · ${campaign.facebookAdAccount.adAccountName}` : ""}`}
+        backHref="/ads"
+      >
+        <div className="flex items-center gap-2">
+          <Badge variant={cfg.variant}>{cfg.label}</Badge>
+          {isFb && (
+            <Badge variant="outline" className="gap-1 border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-400">
+              <Facebook className="h-3 w-3" />Facebook API
+            </Badge>
+          )}
+          {isFb && (
+            <>
+              <Button variant="outline" size="sm" onClick={() => {
+                setEditName(campaign.name)
+                setEditBudget(campaign.dailyBudget ? String(Number(campaign.dailyBudget)) : "")
+                setShowEditDialog(true)
+              }}>
+                <Settings className="mr-1 h-3.5 w-3.5" />แก้ไข
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleRefreshInsights} disabled={refreshing}>
+                {refreshing ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-1 h-3.5 w-3.5" />}
+                Refresh
+              </Button>
+              <Button
+                size="sm"
+                variant={campaign.status === "ACTIVE" ? "outline" : "default"}
+                onClick={handleStatusToggle}
+              >
+                {campaign.status === "ACTIVE" ? (
+                  <><Pause className="mr-1 h-3.5 w-3.5" />หยุดชั่วคราว</>
+                ) : (
+                  <><Play className="mr-1 h-3.5 w-3.5" />เปิดใช้งาน</>
+                )}
+              </Button>
+            </>
+          )}
         </div>
-        {isFb && (
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => {
-              setEditName(campaign.name)
-              setEditBudget(campaign.dailyBudget ? String(Number(campaign.dailyBudget)) : "")
-              setShowEditDialog(true)
-            }}>
-              <Settings className="mr-1 h-3.5 w-3.5" />แก้ไข
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleRefreshInsights} disabled={refreshing}>
-              {refreshing ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-1 h-3.5 w-3.5" />}
-              Refresh
-            </Button>
-            <Button
-              size="sm"
-              variant={campaign.status === "ACTIVE" ? "outline" : "default"}
-              onClick={handleStatusToggle}
-            >
-              {campaign.status === "ACTIVE" ? (
-                <><Pause className="mr-1 h-3.5 w-3.5" />หยุดชั่วคราว</>
-              ) : (
-                <><Play className="mr-1 h-3.5 w-3.5" />เปิดใช้งาน</>
-              )}
-            </Button>
-          </div>
-        )}
-      </div>
+      </PageHeader>
 
       {/* Performance Summary */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

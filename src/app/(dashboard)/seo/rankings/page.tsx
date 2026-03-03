@@ -88,7 +88,7 @@ export default function RankingsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader heading="Rankings" description="Track your keyword ranking positions over time" />
+      <PageHeader heading="Rankings" description="Track your keyword ranking positions over time" backHref="/seo" />
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-4">

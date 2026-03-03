@@ -31,9 +31,12 @@ import {
   TrendingDown,
   Minus,
   Globe,
+  Sparkles,
+  Loader2,
 } from "lucide-react"
 import { toast } from "sonner"
 import { getKeywords, addKeyword, deleteKeyword } from "@/server/actions/seo"
+import { useAIAssist } from "@/hooks/use-ai-assist"
 
 interface Keyword {
   id: string
@@ -56,6 +59,37 @@ export default function KeywordsPage() {
   const [totalPages, setTotalPages] = useState(1)
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [newKeyword, setNewKeyword] = useState({ keyword: "", targetUrl: "" })
+  const aiKeywords = useAIAssist()
+
+  const handleAISuggest = async () => {
+    const currentKws = keywords.map((k) => k.keyword).join(", ")
+    const result = await aiKeywords.generate("seo_keywords", {
+      currentKeywords: currentKws,
+      topic: newKeyword.keyword || search || "marketing",
+    })
+    if (result) {
+      try {
+        // Try parse as JSON array
+        const jsonMatch = result.match(/\[[\s\S]*\]/)
+        if (jsonMatch) {
+          const suggested = JSON.parse(jsonMatch[0]) as string[]
+          // Add them all
+          for (const kw of suggested.slice(0, 10)) {
+            await addKeyword({
+              keyword: kw.trim(),
+              searchEngine: "google",
+              country: "US",
+              language: "en",
+            })
+          }
+          toast.success(`เพิ่ม ${Math.min(suggested.length, 10)} คีย์เวิร์ดจาก AI แล้ว`)
+          fetchData()
+        }
+      } catch {
+        toast.error("ไม่สามารถอ่านคีย์เวิร์ดจาก AI ได้")
+      }
+    }
+  }
 
   const fetchData = useCallback(async () => {
     try {
@@ -121,7 +155,11 @@ export default function KeywordsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader heading="Keywords" description="Track keyword rankings and discover opportunities">
+      <PageHeader heading="Keywords" description="Track keyword rankings and discover opportunities" backHref="/seo">
+        <Button variant="outline" onClick={handleAISuggest} disabled={aiKeywords.isLoading}>
+          {aiKeywords.isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+          AI แนะนำคีย์เวิร์ด
+        </Button>
         <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
           <DialogTrigger asChild>
             <Button><Plus className="mr-2 h-4 w-4" />Add Keywords</Button>

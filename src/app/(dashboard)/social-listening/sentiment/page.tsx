@@ -1,13 +1,11 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import Link from "next/link"
 import { PageHeader } from "@/components/shared/page-header"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
-  ArrowLeft,
   ThumbsUp,
   ThumbsDown,
   Minus,
@@ -20,9 +18,12 @@ import {
   Twitter,
   Linkedin,
   Youtube,
+  Sparkles,
+  Loader2,
 } from "lucide-react"
 import { toast } from "sonner"
 import { getMentionStats } from "@/server/actions/social"
+import { useAIAssist } from "@/hooks/use-ai-assist"
 
 const PLATFORM_ICONS: Record<string, typeof Globe> = {
   FACEBOOK: Facebook,
@@ -42,6 +43,8 @@ interface Stats {
 export default function SentimentPage() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const ai = useAIAssist()
+  const [aiAnalysis, setAiAnalysis] = useState<string | null>(null)
 
   const fetchStats = useCallback(async () => {
     try {
@@ -63,14 +66,36 @@ export default function SentimentPage() {
   const getPercent = (value: number) =>
     sentimentTotal > 0 ? Math.round((value / sentimentTotal) * 100) : 0
 
+  const handleAIAnalysis = async () => {
+    if (!stats) return
+    const summaryText = [
+      `Total mentions: ${sentimentTotal}`,
+      `Positive: ${stats.sentiment.positive} (${getPercent(stats.sentiment.positive)}%)`,
+      `Neutral: ${stats.sentiment.neutral} (${getPercent(stats.sentiment.neutral)}%)`,
+      `Negative: ${stats.sentiment.negative} (${getPercent(stats.sentiment.negative)}%)`,
+      `Mixed: ${stats.sentiment.mixed} (${getPercent(stats.sentiment.mixed)}%)`,
+      `Platforms: ${stats.platformCounts.map((p) => `${p.platform.toLowerCase()}: ${p.count}`).join(", ")}`,
+    ].join("\n")
+
+    const result = await ai.generate("improve_text", {
+      text: summaryText,
+      purpose: "analyze social media sentiment data and provide actionable insights",
+    })
+    if (result) {
+      setAiAnalysis(result)
+    }
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href="/social-listening"><ArrowLeft className="h-4 w-4" /></Link>
-        </Button>
-        <PageHeader heading="Sentiment Analysis" description="AI-powered sentiment analysis of brand mentions" />
-      </div>
+      <PageHeader heading="Sentiment Analysis" description="AI-powered sentiment analysis of brand mentions" backHref="/social-listening">
+        {stats && sentimentTotal > 0 && (
+          <Button variant="outline" onClick={handleAIAnalysis} disabled={ai.isLoading}>
+            {ai.isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+            AI วิเคราะห์ Sentiment
+          </Button>
+        )}
+      </PageHeader>
 
       {isLoading ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -258,6 +283,21 @@ export default function SentimentPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* AI Analysis Result */}
+          {aiAnalysis && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Sparkles className="h-4 w-4 text-purple-500" />
+                  AI วิเคราะห์ Sentiment
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="whitespace-pre-wrap text-sm leading-relaxed">{aiAnalysis}</div>
+              </CardContent>
+            </Card>
+          )}
         </>
       )}
     </div>

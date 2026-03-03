@@ -27,7 +27,6 @@ import {
   Plus,
   Save,
   Loader2,
-  ArrowLeft,
 } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
@@ -94,16 +93,11 @@ export default function ReportBuilderPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader heading="Report Builder" description="Build custom reports with widgets">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" asChild>
-            <Link href="/reports"><ArrowLeft className="mr-2 h-4 w-4" />Back</Link>
-          </Button>
-          <Button onClick={handleSave} disabled={isSaving}>
-            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-            Generate Report
-          </Button>
-        </div>
+      <PageHeader heading="Report Builder" description="Build custom reports with widgets" backHref="/reports">
+        <Button onClick={handleSave} disabled={isSaving}>
+          {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+          Generate Report
+        </Button>
       </PageHeader>
 
       <div className="grid gap-6 lg:grid-cols-3">

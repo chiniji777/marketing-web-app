@@ -179,7 +179,7 @@ export default function SubscribersPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader heading="Subscribers" description="Manage your email subscriber lists">
+      <PageHeader heading="Subscribers" description="Manage your email subscriber lists" backHref="/email">
         <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
           <DialogTrigger asChild>
             <Button><Plus className="mr-2 h-4 w-4" />Add Subscriber</Button>

@@ -187,6 +187,7 @@ export default function CreateProductPage() {
         <PageHeader
           heading="สร้างสินค้าใหม่"
           description="กรอกข้อมูลเบื้องต้น แล้ว AI จะช่วยถามคำถามเพื่อรวบรวมข้อมูลการตลาด"
+          backHref="/products"
         />
 
         <Card>
@@ -267,6 +268,7 @@ export default function CreateProductPage() {
       <PageHeader
         heading={`AI วิเคราะห์: ${name}`}
         description="ตอบคำถาม AI เพื่อรวบรวมข้อมูลสำคัญสำหรับการทำโฆษณา"
+        backHref="/products"
       >
         {marketingData && (
           <Button onClick={handleSaveMarketingData} disabled={saving}>

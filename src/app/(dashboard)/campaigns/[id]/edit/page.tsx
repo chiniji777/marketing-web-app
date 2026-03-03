@@ -19,7 +19,6 @@ import {
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
-  ArrowLeft,
   Check,
   DollarSign,
   Globe,
@@ -143,12 +142,7 @@ export default function EditCampaignPage({ params }: { params: Promise<{ id: str
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href={`/campaigns/${id}`}><ArrowLeft className="h-4 w-4" /></Link>
-        </Button>
-        <PageHeader heading="Edit Campaign" description={name} />
-      </div>
+      <PageHeader heading="Edit Campaign" description={name} backHref={`/campaigns/${id}`} />
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">

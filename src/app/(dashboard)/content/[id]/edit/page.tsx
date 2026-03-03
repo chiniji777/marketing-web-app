@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
-import { ArrowLeft, Loader2, Save } from "lucide-react"
+import { Loader2, Save } from "lucide-react"
 import { toast } from "sonner"
 import { getContent, updateContent } from "@/server/actions/content"
 import { use } from "react"
@@ -105,23 +105,16 @@ export default function ContentEditPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href={`/content/${id}`}>
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
+      <PageHeader heading="Edit Content" description="" backHref={`/content/${id}`}>
+        <Button onClick={handleSave} disabled={isSaving}>
+          {isSaving ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Save className="mr-2 h-4 w-4" />
+          )}
+          Save Changes
         </Button>
-        <PageHeader heading="Edit Content" description="">
-          <Button onClick={handleSave} disabled={isSaving}>
-            {isSaving ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Save className="mr-2 h-4 w-4" />
-            )}
-            Save Changes
-          </Button>
-        </PageHeader>
-      </div>
+      </PageHeader>
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Editor */}

@@ -248,7 +248,7 @@ export default function AutomationsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader heading="Automations" description="Set up automated email sequences and drip campaigns">
+      <PageHeader heading="Automations" description="Set up automated email sequences and drip campaigns" backHref="/email">
         <Dialog open={showCreateDialog} onOpenChange={(open) => {
           setShowCreateDialog(open)
           if (!open) setSelectedTemplate("")

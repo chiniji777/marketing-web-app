@@ -27,9 +27,11 @@ import {
   Users,
   Facebook,
   AlertCircle,
+  Sparkles,
 } from "lucide-react"
 import { toast } from "sonner"
 import { createAdsCampaign, createFacebookCampaign, getFacebookAdAccounts } from "@/server/actions/ads"
+import { useAIAssist } from "@/hooks/use-ai-assist"
 
 const PLATFORMS = [
   { value: "FACEBOOK", label: "Facebook", description: "โฆษณาบน Facebook ผ่าน API โดยตรง", hasFbApi: true },
@@ -96,6 +98,34 @@ export default function CreateAdPage() {
   const [fbAccounts, setFbAccounts] = useState<FacebookAdAccountInfo[]>([])
   const [selectedFbAccountId, setSelectedFbAccountId] = useState("")
   const [loadingFbAccounts, setLoadingFbAccounts] = useState(false)
+
+  // AI assistance
+  const aiAdCopy = useAIAssist()
+  const aiAudience = useAIAssist()
+
+  const handleAIAdCopy = async () => {
+    const result = await aiAdCopy.generate("ad_copy", {
+      productName: name,
+      platform: platform || "facebook",
+      objective: objective || "conversions",
+      audience: targetAudience || "general",
+    })
+    if (result) {
+      setAdContent(result)
+      toast.success("AI สร้าง ad copy แล้ว")
+    }
+  }
+
+  const handleAIAudience = async () => {
+    const result = await aiAudience.generate("improve_text", {
+      text: targetAudience || name,
+      purpose: `กำหนดกลุ่มเป้าหมายสำหรับโฆษณา "${name}" บน ${platform || "social media"} วัตถุประสงค์: ${objective || "conversions"} — ให้อธิบายกลุ่มเป้าหมายที่เหมาะสม (เพศ, อายุ, ความสนใจ, พฤติกรรม, ที่อยู่)`,
+    })
+    if (result) {
+      setTargetAudience(result)
+      toast.success("AI แนะนำกลุ่มเป้าหมายแล้ว")
+    }
+  }
 
   const isFacebookPlatform = platform === "FACEBOOK"
   const objectives = isFacebookPlatform ? FACEBOOK_OBJECTIVES : GENERIC_OBJECTIVES
@@ -177,12 +207,7 @@ export default function CreateAdPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href="/ads"><ArrowLeft className="h-4 w-4" /></Link>
-        </Button>
-        <PageHeader heading="สร้างแคมเปญโฆษณา" description="ตั้งค่าแคมเปญโฆษณาใหม่" />
-      </div>
+      <PageHeader heading="สร้างแคมเปญโฆษณา" description="ตั้งค่าแคมเปญโฆษณาใหม่" backHref="/ads" />
 
       {/* Step Indicator */}
       <div className="flex items-center gap-2">
@@ -380,14 +405,26 @@ export default function CreateAdPage() {
           <CardHeader><CardTitle className="text-base">กลุ่มเป้าหมายและเนื้อหา</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label>กลุ่มเป้าหมาย</Label>
+              <div className="flex items-center justify-between">
+                <Label>กลุ่มเป้าหมาย</Label>
+                <Button variant="ghost" size="sm" onClick={handleAIAudience} disabled={aiAudience.isLoading}>
+                  {aiAudience.isLoading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Sparkles className="mr-1 h-3 w-3" />}
+                  AI แนะนำ
+                </Button>
+              </div>
               <Textarea value={targetAudience} onChange={(e) => setTargetAudience(e.target.value)} rows={3} placeholder="อธิบายกลุ่มเป้าหมาย (เพศ, อายุ, ความสนใจ, พฤติกรรม)" />
               {isFacebookPlatform && (
                 <p className="text-xs text-muted-foreground">การกำหนดกลุ่มเป้าหมายแบบละเอียดสามารถตั้งค่าเพิ่มได้ใน Facebook Ads Manager</p>
               )}
             </div>
             <div className="space-y-2">
-              <Label>เนื้อหาโฆษณา / Ad Copy</Label>
+              <div className="flex items-center justify-between">
+                <Label>เนื้อหาโฆษณา / Ad Copy</Label>
+                <Button variant="ghost" size="sm" onClick={handleAIAdCopy} disabled={aiAdCopy.isLoading}>
+                  {aiAdCopy.isLoading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Sparkles className="mr-1 h-3 w-3" />}
+                  AI สร้าง Ad Copy
+                </Button>
+              </div>
               <Textarea value={adContent} onChange={(e) => setAdContent(e.target.value)} rows={4} placeholder="เขียน ad copy หรืออธิบายสิ่งที่ต้องการโปรโมท" />
             </div>
           </CardContent>

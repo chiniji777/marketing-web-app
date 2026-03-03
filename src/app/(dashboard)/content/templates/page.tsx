@@ -42,6 +42,7 @@ import {
   Globe,
 } from "lucide-react"
 import { toast } from "sonner"
+import { useAIAssist } from "@/hooks/use-ai-assist"
 import { getTemplates, createTemplate, deleteTemplate } from "@/server/actions/content"
 
 const TYPE_ICONS: Record<string, typeof FileText> = {
@@ -77,6 +78,30 @@ export default function ContentTemplatesPage() {
   const [newDescription, setNewDescription] = useState("")
   const [newType, setNewType] = useState("SOCIAL_POST")
   const [newBody, setNewBody] = useState("")
+
+  const ai = useAIAssist()
+
+  const handleAISuggest = async () => {
+    const typeMap: Record<string, string> = {
+      SOCIAL_POST: "social_post",
+      AD_COPY: "ad_copy",
+      EMAIL: "email_content",
+      BLOG_POST: "improve_text",
+      LANDING_PAGE: "ad_copy",
+      VIDEO_SCRIPT: "improve_text",
+    }
+    const aiType = (typeMap[newType] || "social_post") as Parameters<typeof ai.generate>[0]
+    const result = await ai.generate(aiType, {
+      campaignName: newName || "Content Template",
+      contentType: newType,
+      description: newDescription || undefined,
+      tone: "professional",
+    })
+    if (result) {
+      setNewBody(result)
+      toast.success("AI แนะนำเทมเพลตสำเร็จ")
+    }
+  }
 
   const fetchTemplates = useCallback(async () => {
     setIsLoading(true)
@@ -144,6 +169,7 @@ export default function ContentTemplatesPage() {
       <PageHeader
         heading="Content Templates"
         description="Reusable templates for your marketing content"
+        backHref="/content"
       >
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
@@ -197,7 +223,23 @@ export default function ContentTemplatesPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="tpl-body">Template Body *</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="tpl-body">Template Body *</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleAISuggest}
+                    disabled={ai.isLoading}
+                  >
+                    {ai.isLoading ? (
+                      <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Sparkles className="mr-2 h-3.5 w-3.5" />
+                    )}
+                    AI แนะนำเทมเพลต
+                  </Button>
+                </div>
                 <Textarea
                   id="tpl-body"
                   value={newBody}

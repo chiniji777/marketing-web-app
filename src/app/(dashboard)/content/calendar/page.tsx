@@ -208,6 +208,7 @@ export default function ContentCalendarPage() {
       <PageHeader
         heading="Content Calendar"
         description="วางแผนและกำหนดเวลาโพสเนื้อหา — ลากเนื้อหาจากซ้ายไปวางในปฏิทิน"
+        backHref="/content"
       >
         <div className="flex items-center gap-2">
           <Select value={filterProduct} onValueChange={setFilterProduct}>

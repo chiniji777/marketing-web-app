@@ -37,7 +37,7 @@ const PLANS = [
 export default function BillingSettingsPage() {
   return (
     <div className="space-y-6">
-      <PageHeader heading="Billing" description="Manage your subscription and billing" />
+      <PageHeader heading="Billing" description="Manage your subscription and billing" backHref="/settings" />
 
       {/* Current Plan */}
       <Card>

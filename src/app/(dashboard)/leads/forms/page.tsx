@@ -184,7 +184,7 @@ export default function LeadFormsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader heading="Lead Forms" description="Create and manage lead capture forms">
+      <PageHeader heading="Lead Forms" description="Create and manage lead capture forms" backHref="/leads">
         <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
           <DialogTrigger asChild>
             <Button><Plus className="mr-2 h-4 w-4" />Create Form</Button>

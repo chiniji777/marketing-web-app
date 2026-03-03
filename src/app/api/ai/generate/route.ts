@@ -33,6 +33,13 @@ const PLATFORM_GUIDELINES: Record<string, string> = {
 }
 
 export async function POST(req: Request) {
+  if (!process.env.OPENAI_API_KEY) {
+    return new Response(
+      JSON.stringify({ error: "OPENAI_API_KEY is not configured" }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    )
+  }
+
   const session = await auth()
   if (!session?.user?.id) {
     return new Response("Unauthorized", { status: 401 })

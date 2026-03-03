@@ -31,9 +31,11 @@ import {
   Linkedin,
   Youtube,
   Loader2,
+  Sparkles,
 } from "lucide-react"
 import { toast } from "sonner"
 import { createCampaign } from "@/server/actions/campaign"
+import { useAIAssist } from "@/hooks/use-ai-assist"
 
 const STEPS = [
   { id: "basics", label: "Basics", description: "Name and type" },
@@ -81,6 +83,19 @@ export default function CreateCampaignPage() {
   const router = useRouter()
   const [step, setStep] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const aiDescription = useAIAssist()
+
+  const handleAIDescription = async () => {
+    const result = await aiDescription.generate("campaign_description", {
+      campaignName: name,
+      campaignType,
+      channels: channels.join(", "),
+    })
+    if (result) {
+      setDescription(result)
+      toast.success("AI สร้างคำอธิบายแคมเปญแล้ว")
+    }
+  }
 
   // Form state
   const [name, setName] = useState("")
@@ -141,12 +156,7 @@ export default function CreateCampaignPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href="/campaigns"><ArrowLeft className="h-4 w-4" /></Link>
-        </Button>
-        <PageHeader heading="Create Campaign" description="Set up a new marketing campaign" />
-      </div>
+      <PageHeader heading="Create Campaign" description="Set up a new marketing campaign" backHref="/campaigns" />
 
       {/* Step Indicator */}
       <div className="flex items-center gap-2">
@@ -192,7 +202,13 @@ export default function CreateCampaignPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="description">Description</Label>
+                  <Button variant="ghost" size="sm" onClick={handleAIDescription} disabled={aiDescription.isLoading || !name.trim()}>
+                    {aiDescription.isLoading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Sparkles className="mr-1 h-3 w-3" />}
+                    AI แนะนำ
+                  </Button>
+                </div>
                 <Textarea
                   id="description"
                   placeholder="Brief description of the campaign goals and strategy..."

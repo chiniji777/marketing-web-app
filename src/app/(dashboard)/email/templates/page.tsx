@@ -36,8 +36,11 @@ import {
   MoreHorizontal,
   Trash2,
   Eye,
+  Sparkles,
+  Loader2,
 } from "lucide-react"
 import { toast } from "sonner"
+import { useAIAssist } from "@/hooks/use-ai-assist"
 import { getEmailTemplates, createEmailTemplate, deleteEmailTemplate } from "@/server/actions/email"
 
 const CATEGORIES = ["Newsletter", "Welcome", "Promotional", "Transactional", "Announcement", "Other"]
@@ -62,6 +65,21 @@ export default function EmailTemplatesPage() {
   const [subject, setSubject] = useState("")
   const [category, setCategory] = useState("")
   const [htmlContent, setHtmlContent] = useState("")
+
+  const ai = useAIAssist()
+
+  const handleAIGenerate = async () => {
+    const result = await ai.generate("email_content", {
+      campaignName: name || "Email Template",
+      subject: subject || undefined,
+      category: category || undefined,
+      tone: "professional",
+    })
+    if (result) {
+      setHtmlContent(result)
+      toast.success("AI สร้างเทมเพลตสำเร็จ")
+    }
+  }
 
   const fetchTemplates = useCallback(async () => {
     try {
@@ -130,7 +148,7 @@ export default function EmailTemplatesPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader heading="Email Templates" description="Manage your reusable email templates">
+      <PageHeader heading="Email Templates" description="Manage your reusable email templates" backHref="/email">
         <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
           <DialogTrigger asChild>
             <Button><Plus className="mr-2 h-4 w-4" />Create Template</Button>
@@ -162,7 +180,23 @@ export default function EmailTemplatesPage() {
                 <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Optional default subject" />
               </div>
               <div className="space-y-2">
-                <Label>HTML Content *</Label>
+                <div className="flex items-center justify-between">
+                  <Label>HTML Content *</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleAIGenerate}
+                    disabled={ai.isLoading}
+                  >
+                    {ai.isLoading ? (
+                      <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Sparkles className="mr-2 h-3.5 w-3.5" />
+                    )}
+                    AI สร้างเทมเพลต
+                  </Button>
+                </div>
                 <Textarea
                   value={htmlContent}
                   onChange={(e) => setHtmlContent(e.target.value)}

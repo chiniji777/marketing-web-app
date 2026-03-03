@@ -136,7 +136,7 @@ export default function SiteAuditPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader heading="Site Audit" description="Analyze your website for SEO issues and opportunities">
+      <PageHeader heading="Site Audit" description="Analyze your website for SEO issues and opportunities" backHref="/seo">
         <Dialog open={showRunDialog} onOpenChange={setShowRunDialog}>
           <DialogTrigger asChild>
             <Button><Plus className="mr-2 h-4 w-4" />Run Audit</Button>

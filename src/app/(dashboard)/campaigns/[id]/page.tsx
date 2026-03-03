@@ -8,7 +8,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
-  ArrowLeft,
   Pencil,
   Target,
   DollarSign,
@@ -183,23 +182,14 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
+      <PageHeader
+        heading={campaign.name}
+        description={campaign.description || undefined}
+        backHref="/campaigns"
+      >
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" asChild>
-            <Link href="/campaigns"><ArrowLeft className="h-4 w-4" /></Link>
-          </Button>
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold">{campaign.name}</h1>
-              <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>
-              <Badge variant="outline">{TYPE_LABELS[campaign.type] ?? campaign.type}</Badge>
-            </div>
-            {campaign.description && (
-              <p className="mt-1 text-sm text-muted-foreground">{campaign.description}</p>
-            )}
-          </div>
-        </div>
-        <div className="flex gap-2">
+          <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>
+          <Badge variant="outline">{TYPE_LABELS[campaign.type] ?? campaign.type}</Badge>
           {campaign.status === "DRAFT" && (
             <Button variant="outline" size="sm" onClick={() => handleStatusChange("ACTIVE")}>
               <Play className="mr-2 h-4 w-4" />Activate
@@ -224,7 +214,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
             <Link href={`/campaigns/${id}/edit`}><Pencil className="mr-2 h-4 w-4" />Edit</Link>
           </Button>
         </div>
-      </div>
+      </PageHeader>
 
       {/* Performance KPI */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

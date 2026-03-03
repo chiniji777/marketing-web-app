@@ -80,7 +80,7 @@ export function getFacebookOAuthUrl(redirectUri: string, state: string): string 
   const appId = process.env.FACEBOOK_APP_ID
   if (!appId) throw new Error("FACEBOOK_APP_ID is not set")
 
-  const scopes = "ads_management,ads_read,business_management,public_profile,email"
+  const scopes = "ads_management,ads_read,business_management,public_profile,pages_show_list,pages_read_engagement"
   const params = new URLSearchParams({
     client_id: appId,
     redirect_uri: redirectUri,

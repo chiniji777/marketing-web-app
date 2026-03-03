@@ -22,10 +22,13 @@ import {
   Linkedin,
   Youtube,
   ExternalLink,
+  Sparkles,
+  Loader2,
 } from "lucide-react"
 import { toast } from "sonner"
 import { useTranslations } from "@/hooks/use-locale"
 import { getMentionStats } from "@/server/actions/social"
+import { useAIAssist } from "@/hooks/use-ai-assist"
 
 const PLATFORM_ICONS: Record<string, typeof Globe> = {
   FACEBOOK: Facebook,
@@ -65,6 +68,8 @@ export default function SocialListeningPage() {
   const t = useTranslations()
   const [stats, setStats] = useState<MentionStats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const ai = useAIAssist()
+  const [aiInsight, setAiInsight] = useState<string | null>(null)
 
   const fetchStats = useCallback(async () => {
     try {
@@ -78,6 +83,24 @@ export default function SocialListeningPage() {
   }, [])
 
   useEffect(() => { fetchStats() }, [fetchStats])
+
+  const handleAIAnalysis = async () => {
+    if (!stats) return
+    const summaryText = [
+      `Total mentions: ${stats.total}`,
+      `Positive: ${stats.sentiment.positive}, Negative: ${stats.sentiment.negative}, Neutral: ${stats.sentiment.neutral}, Mixed: ${stats.sentiment.mixed}`,
+      `Platforms: ${stats.platformCounts.map((p) => `${p.platform.toLowerCase()}: ${p.count}`).join(", ")}`,
+      `Recent mentions: ${stats.recentMentions.slice(0, 5).map((m) => `[${m.sentiment ?? "unknown"}] ${m.content.slice(0, 80)}`).join(" | ")}`,
+    ].join("\n")
+
+    const result = await ai.generate("improve_text", {
+      text: summaryText,
+      purpose: "analyze social media sentiment data and provide actionable insights",
+    })
+    if (result) {
+      setAiInsight(result)
+    }
+  }
 
   if (isLoading) {
     return (
@@ -101,6 +124,10 @@ export default function SocialListeningPage() {
     <div className="space-y-6">
       <PageHeader heading={t.social.title} description={t.social.subtitle}>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={handleAIAnalysis} disabled={ai.isLoading || !stats}>
+            {ai.isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+            AI วิเคราะห์
+          </Button>
           <Button variant="outline" asChild>
             <Link href="/social-listening/sentiment">Sentiment</Link>
           </Button>
@@ -117,6 +144,21 @@ export default function SocialListeningPage() {
         <StatCard title={t.social.negativeSentiment} value={stats?.sentiment.negative.toLocaleString() ?? "0"} icon={ThumbsDown} changeType="negative" description="require attention" />
         <StatCard title={t.social.avgSentiment} value={stats?.platformCounts.length.toString() ?? "0"} icon={Globe} description="active sources" />
       </div>
+
+      {/* AI Analysis Result */}
+      {aiInsight && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Sparkles className="h-4 w-4 text-purple-500" />
+              AI วิเคราะห์ภาพรวม
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="whitespace-pre-wrap text-sm leading-relaxed">{aiInsight}</div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Recent Mentions */}

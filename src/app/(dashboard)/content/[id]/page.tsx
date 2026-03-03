@@ -10,7 +10,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import {
   Pencil,
-  ArrowLeft,
   Sparkles,
   Calendar,
   Globe,
@@ -83,24 +82,17 @@ export default async function ContentDetailPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href="/content">
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-        </Button>
-        <PageHeader heading={content.title} description="">
-          <div className="flex items-center gap-2">
-            <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
-            <Button variant="outline" asChild>
-              <Link href={`/content/${id}/edit`}>
-                <Pencil className="mr-2 h-4 w-4" />
-                Edit
-              </Link>
-            </Button>
-          </div>
-        </PageHeader>
-      </div>
+      <PageHeader heading={content.title} description="" backHref="/content">
+        <div className="flex items-center gap-2">
+          <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
+          <Button variant="outline" asChild>
+            <Link href={`/content/${id}/edit`}>
+              <Pencil className="mr-2 h-4 w-4" />
+              Edit
+            </Link>
+          </Button>
+        </div>
+      </PageHeader>
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Main Content */}

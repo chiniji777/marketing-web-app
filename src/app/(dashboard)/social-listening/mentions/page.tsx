@@ -25,7 +25,6 @@ import {
   ThumbsDown,
   Minus,
   BarChart3,
-  ArrowLeft,
   Instagram,
   Facebook,
   Twitter,
@@ -99,12 +98,7 @@ export default function MentionsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href="/social-listening"><ArrowLeft className="h-4 w-4" /></Link>
-        </Button>
-        <PageHeader heading="All Mentions" description="Brand mentions across all platforms" />
-      </div>
+      <PageHeader heading="All Mentions" description="Brand mentions across all platforms" backHref="/social-listening" />
 
       {/* Filters */}
       <Card>

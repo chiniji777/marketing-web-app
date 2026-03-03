@@ -18,7 +18,6 @@ import {
   Send,
   Loader2,
   Save,
-  ArrowLeft,
   BarChart3,
   Shield,
   Heart,
@@ -302,27 +301,21 @@ export default function ProductDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Link href="/products">
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-        </Link>
-        <PageHeader
-          heading={product.name}
-          description={product.description || "ยังไม่มีรายละเอียด"}
-        >
-          <div className="flex gap-2">
-            <Badge variant={product.status === "ACTIVE" ? "default" : "secondary"}>
-              {statusLabel(product.status)}
-            </Badge>
-            <Badge variant="outline">
-              <BarChart3 className="mr-1 h-3 w-3" />
-              {product.marketingDataScore}%
-            </Badge>
-          </div>
-        </PageHeader>
-      </div>
+      <PageHeader
+        heading={product.name}
+        description={product.description || "ยังไม่มีรายละเอียด"}
+        backHref="/products"
+      >
+        <div className="flex gap-2">
+          <Badge variant={product.status === "ACTIVE" ? "default" : "secondary"}>
+            {statusLabel(product.status)}
+          </Badge>
+          <Badge variant="outline">
+            <BarChart3 className="mr-1 h-3 w-3" />
+            {product.marketingDataScore}%
+          </Badge>
+        </div>
+      </PageHeader>
 
       <Tabs defaultValue={defaultTab} onValueChange={(tab) => loadTabData(tab)}>
         <TabsList className="flex-wrap">

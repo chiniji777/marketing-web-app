@@ -128,7 +128,7 @@ export default function IntegrationsSettingsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader heading="Integrations" description="Connect your social media accounts and third-party services" />
+      <PageHeader heading="Integrations" description="Connect your social media accounts and third-party services" backHref="/settings" />
 
       <Card>
         <CardHeader>

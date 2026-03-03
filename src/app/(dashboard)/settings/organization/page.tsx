@@ -75,7 +75,7 @@ export default function OrganizationSettingsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader heading="Organization" description="Manage your organization details" />
+      <PageHeader heading="Organization" description="Manage your organization details" backHref="/settings" />
 
       <Card>
         <CardHeader><CardTitle className="text-base">Organization Details</CardTitle></CardHeader>

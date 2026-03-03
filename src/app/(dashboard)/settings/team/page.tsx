@@ -129,7 +129,7 @@ export default function TeamSettingsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader heading="Team" description="Manage team members and roles">
+      <PageHeader heading="Team" description="Manage team members and roles" backHref="/settings">
         <Dialog open={showInviteDialog} onOpenChange={setShowInviteDialog}>
           <DialogTrigger asChild>
             <Button><Plus className="mr-2 h-4 w-4" />Invite Member</Button>

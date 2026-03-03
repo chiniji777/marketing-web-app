@@ -18,15 +18,16 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import {
-  ArrowLeft,
   Send,
   Save,
   Loader2,
   Eye,
+  Sparkles,
 } from "lucide-react"
 import { toast } from "sonner"
 import { createEmailCampaign } from "@/server/actions/email"
 import { getEmailTemplates } from "@/server/actions/email"
+import { useAIAssist } from "@/hooks/use-ai-assist"
 
 interface Template {
   id: string
@@ -51,6 +52,37 @@ export default function ComposeEmailPage() {
   const [htmlContent, setHtmlContent] = useState("")
   const [textContent, setTextContent] = useState("")
   const [scheduledAt, setScheduledAt] = useState("")
+
+  const aiSubject = useAIAssist()
+  const aiContent = useAIAssist()
+
+  const handleAISubject = async () => {
+    const result = await aiSubject.generate("email_subject", {
+      campaignName: name,
+      topic: subject || name,
+    })
+    if (result) {
+      // Extract first subject line suggestion
+      const lines = result.split("\n").filter((l: string) => l.trim())
+      if (lines.length > 0) {
+        const firstLine = lines[0].replace(/^\d+[\.\)]\s*/, "").trim()
+        setSubject(firstLine)
+        toast.success("AI แนะนำหัวข้ออีเมลแล้ว")
+      }
+    }
+  }
+
+  const handleAIContent = async () => {
+    const result = await aiContent.generate("email_content", {
+      campaignName: name,
+      subject,
+      tone: "professional",
+    })
+    if (result) {
+      setHtmlContent(result)
+      toast.success("AI สร้างเนื้อหาอีเมลแล้ว")
+    }
+  }
 
   useEffect(() => {
     getEmailTemplates().then((data) => {
@@ -108,12 +140,7 @@ export default function ComposeEmailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href="/email"><ArrowLeft className="h-4 w-4" /></Link>
-        </Button>
-        <PageHeader heading="Compose Email" description="Create a new email campaign" />
-      </div>
+      <PageHeader heading="Compose Email" description="Create a new email campaign" backHref="/email" />
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
@@ -126,7 +153,13 @@ export default function ComposeEmailPage() {
                 <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g., March Newsletter" />
               </div>
               <div className="space-y-2">
-                <Label>Subject Line *</Label>
+                <div className="flex items-center justify-between">
+                  <Label>Subject Line *</Label>
+                  <Button variant="ghost" size="sm" onClick={handleAISubject} disabled={aiSubject.isLoading}>
+                    {aiSubject.isLoading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Sparkles className="mr-1 h-3 w-3" />}
+                    AI แนะนำ
+                  </Button>
+                </div>
                 <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="What subscribers will see in their inbox" />
               </div>
               <div className="space-y-2">
@@ -141,11 +174,17 @@ export default function ComposeEmailPage() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base">Email Content</CardTitle>
-                {htmlContent && (
-                  <Button variant="outline" size="sm" onClick={() => setShowPreview(!showPreview)}>
-                    <Eye className="mr-2 h-3 w-3" />{showPreview ? "Edit" : "Preview"}
+                <div className="flex items-center gap-2">
+                  <Button variant="ghost" size="sm" onClick={handleAIContent} disabled={aiContent.isLoading}>
+                    {aiContent.isLoading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Sparkles className="mr-1 h-3 w-3" />}
+                    AI สร้างเนื้อหา
                   </Button>
-                )}
+                  {htmlContent && (
+                    <Button variant="outline" size="sm" onClick={() => setShowPreview(!showPreview)}>
+                      <Eye className="mr-2 h-3 w-3" />{showPreview ? "Edit" : "Preview"}
+                    </Button>
+                  )}
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">

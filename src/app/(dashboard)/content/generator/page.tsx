@@ -38,6 +38,8 @@ import {
   Layout,
   Hash,
   Package,
+  Image as ImageIcon,
+  Download,
 } from "lucide-react"
 import { toast } from "sonner"
 import { createContent } from "@/server/actions/content"
@@ -111,6 +113,13 @@ function ContentGeneratorInner() {
   const [generationHistory, setGenerationHistory] = useState<
     Array<{ content: string; type: string; timestamp: Date }>
   >([])
+
+  // Image generation
+  const [imageUrl, setImageUrl] = useState("")
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false)
+  const [imagePrompt, setImagePrompt] = useState("")
+  const [imageSize, setImageSize] = useState<"1024x1024" | "1024x1792" | "1792x1024">("1024x1024")
+  const [imageStyle, setImageStyle] = useState<"vivid" | "natural">("vivid")
 
   // Product selector
   const [products, setProducts] = useState<SimpleProduct[]>([])
@@ -206,6 +215,44 @@ function ContentGeneratorInner() {
     setAdditionalInstructions("")
   }, [])
 
+  const handleGenerateImage = useCallback(async () => {
+    if (!topic.trim()) {
+      toast.error("กรุณาใส่หัวข้อก่อนสร้างภาพ")
+      return
+    }
+
+    setIsGeneratingImage(true)
+    setImageUrl("")
+    setImagePrompt("")
+
+    try {
+      const res = await fetch("/api/ai/image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: topic,
+          size: imageSize,
+          style: imageStyle,
+          quality: "standard",
+        }),
+      })
+
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}))
+        throw new Error(error.message || "ไม่สามารถสร้างภาพได้")
+      }
+
+      const data = await res.json()
+      setImageUrl(data.imageUrl)
+      setImagePrompt(data.revisedPrompt || "")
+      toast.success("สร้างภาพสำเร็จ")
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "ไม่สามารถสร้างภาพได้")
+    } finally {
+      setIsGeneratingImage(false)
+    }
+  }, [topic, imageSize, imageStyle])
+
   const wordCount = completion
     ? completion.split(/\s+/).filter(Boolean).length
     : 0
@@ -216,6 +263,7 @@ function ContentGeneratorInner() {
       <PageHeader
         heading="AI Content Generator"
         description="สร้างเนื้อหาการตลาดด้วย AI"
+        backHref="/content"
       >
         {completion && (
           <div className="flex items-center gap-2">
@@ -457,6 +505,122 @@ function ContentGeneratorInner() {
                       </h3>
                       <p className="mt-2 max-w-sm text-sm text-muted-foreground">
                         ตั้งค่าด้านซ้าย แล้วกดสร้างเนื้อหาเพื่อให้ AI เขียนให้
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* AI Image Generation */}
+              <Card className="mt-6">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <ImageIcon className="h-4 w-4" />
+                    AI สร้างภาพ
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex flex-wrap items-end gap-3">
+                    <div className="space-y-2">
+                      <Label>ขนาดภาพ</Label>
+                      <Select value={imageSize} onValueChange={(v) => setImageSize(v as typeof imageSize)}>
+                        <SelectTrigger className="w-[160px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1024x1024">สี่เหลี่ยมจัตุรัส</SelectItem>
+                          <SelectItem value="1024x1792">แนวตั้ง</SelectItem>
+                          <SelectItem value="1792x1024">แนวนอน</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>สไตล์ภาพ</Label>
+                      <Select value={imageStyle} onValueChange={(v) => setImageStyle(v as typeof imageStyle)}>
+                        <SelectTrigger className="w-[140px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="vivid">สดใส (Vivid)</SelectItem>
+                          <SelectItem value="natural">ธรรมชาติ (Natural)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button
+                      onClick={handleGenerateImage}
+                      disabled={isGeneratingImage || !topic.trim()}
+                    >
+                      {isGeneratingImage ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          กำลังสร้างภาพ...
+                        </>
+                      ) : (
+                        <>
+                          <ImageIcon className="mr-2 h-4 w-4" />
+                          AI สร้างภาพ
+                        </>
+                      )}
+                    </Button>
+                  </div>
+
+                  {isGeneratingImage && (
+                    <div className="flex flex-col items-center justify-center py-12">
+                      <ImageIcon className="h-8 w-8 animate-pulse text-primary" />
+                      <p className="mt-4 text-sm text-muted-foreground">
+                        AI กำลังสร้างภาพ...
+                      </p>
+                    </div>
+                  )}
+
+                  {imageUrl && (
+                    <div className="space-y-3">
+                      <div className="overflow-hidden rounded-lg border">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={imageUrl}
+                          alt="AI Generated"
+                          className="h-auto w-full"
+                        />
+                      </div>
+                      {imagePrompt && (
+                        <p className="text-xs text-muted-foreground">
+                          <span className="font-medium">Revised prompt:</span> {imagePrompt}
+                        </p>
+                      )}
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={async () => {
+                            await navigator.clipboard.writeText(imageUrl)
+                            toast.success("คัดลอก URL แล้ว")
+                          }}
+                        >
+                          <Copy className="mr-2 h-3 w-3" />
+                          คัดลอก URL
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          asChild
+                        >
+                          <a href={imageUrl} target="_blank" rel="noopener noreferrer" download>
+                            <Download className="mr-2 h-3 w-3" />
+                            ดาวน์โหลด
+                          </a>
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {!isGeneratingImage && !imageUrl && (
+                    <div className="flex flex-col items-center justify-center py-8 text-center">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                        <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                      </div>
+                      <p className="mt-3 max-w-sm text-sm text-muted-foreground">
+                        ใส่หัวข้อด้านซ้าย แล้วกด AI สร้างภาพ เพื่อให้ AI สร้างภาพประกอบให้
                       </p>
                     </div>
                   )}
