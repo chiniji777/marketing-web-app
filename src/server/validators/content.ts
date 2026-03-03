@@ -26,6 +26,7 @@ export const generateContentSchema = z.object({
   keywords: z.string().optional(),
   additionalInstructions: z.string().max(1000).optional(),
   templateId: z.string().optional(),
+  productId: z.string().optional(),
 })
 
 export const createContentSchema = z.object({

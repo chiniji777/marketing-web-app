@@ -6,18 +6,13 @@ import {
   FileText,
   Globe,
   LayoutDashboard,
-  Mail,
   Megaphone,
   Package,
-  Search,
   Settings,
   Sparkles,
   Target,
   TrendingUp,
   Users,
-  Zap,
-  ClipboardList,
-  Send,
   type LucideIcon,
 } from "lucide-react"
 
@@ -85,45 +80,8 @@ export const dashboardNavigation: NavSection[] = [
     ],
   },
   {
-    label: "Engage",
-    items: [
-      {
-        title: "Leads & CRM",
-        href: "/leads",
-        icon: Users,
-        children: [
-          { title: "Pipeline", href: "/leads", icon: Users },
-          { title: "Lead Forms", href: "/leads/forms", icon: ClipboardList },
-        ],
-      },
-      {
-        title: "Email Marketing",
-        href: "/email",
-        icon: Mail,
-        children: [
-          { title: "Campaigns", href: "/email", icon: Mail },
-          { title: "Compose", href: "/email/compose", icon: Send },
-          { title: "Templates", href: "/email/templates", icon: FileText },
-          { title: "Subscribers", href: "/email/subscribers", icon: Users },
-          { title: "Automations", href: "/email/automations", icon: Zap },
-        ],
-      },
-    ],
-  },
-  {
     label: "Analyze",
     items: [
-      {
-        title: "SEO Tools",
-        href: "/seo",
-        icon: Search,
-        children: [
-          { title: "Overview", href: "/seo", icon: Search },
-          { title: "Keywords", href: "/seo/keywords", icon: FileText },
-          { title: "Rankings", href: "/seo/rankings", icon: TrendingUp },
-          { title: "Site Audit", href: "/seo/audit", icon: ClipboardList },
-        ],
-      },
       {
         title: "Reports",
         href: "/reports",

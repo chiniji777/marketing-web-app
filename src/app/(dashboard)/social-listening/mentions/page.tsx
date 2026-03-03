@@ -33,6 +33,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { getMentions } from "@/server/actions/social"
+import { getProductsSimple } from "@/server/actions/product"
 
 const PLATFORM_ICONS: Record<string, typeof Globe> = {
   FACEBOOK: Facebook,
@@ -67,13 +68,21 @@ interface MentionItem {
   mentionedAt: string | Date
 }
 
+interface SimpleProduct { id: string; name: string; category: string | null; marketingDataScore: number }
+
 export default function MentionsPage() {
   const [mentions, setMentions] = useState<MentionItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [platform, setPlatform] = useState("all")
   const [sentiment, setSentiment] = useState("all")
+  const [productFilter, setProductFilter] = useState("all")
+  const [products, setProducts] = useState<SimpleProduct[]>([])
   const [pagination, setPagination] = useState({ page: 1, perPage: 20, total: 0, totalPages: 0 })
+
+  useEffect(() => {
+    getProductsSimple().then((p) => setProducts(p as unknown as SimpleProduct[])).catch(() => {})
+  }, [])
 
   const fetchMentions = useCallback(async () => {
     setIsLoading(true)
@@ -81,6 +90,7 @@ export default function MentionsPage() {
       const result = await getMentions({
         platform: platform === "all" ? undefined : platform,
         sentiment: sentiment === "all" ? undefined : sentiment,
+        productId: productFilter === "all" ? undefined : productFilter,
         search: search || undefined,
         page: pagination.page,
         perPage: pagination.perPage,
@@ -92,7 +102,7 @@ export default function MentionsPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [platform, sentiment, search, pagination.page, pagination.perPage])
+  }, [platform, sentiment, productFilter, search, pagination.page, pagination.perPage])
 
   useEffect(() => { fetchMentions() }, [fetchMentions])
 
@@ -130,6 +140,17 @@ export default function MentionsPage() {
                 <SelectItem value="MIXED">Mixed</SelectItem>
               </SelectContent>
             </Select>
+            {products.length > 0 && (
+              <Select value={productFilter} onValueChange={setProductFilter}>
+                <SelectTrigger className="w-full sm:w-[180px]"><SelectValue placeholder="สินค้า" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">ทุกสินค้า</SelectItem>
+                  {products.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
         </CardContent>
       </Card>

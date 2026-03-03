@@ -234,6 +234,7 @@ function ContentGeneratorInner() {
           size: imageSize,
           style: imageStyle,
           quality: "standard",
+          productId: selectedProductId !== "none" ? selectedProductId : undefined,
         }),
       })
 

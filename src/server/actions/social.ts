@@ -62,6 +62,7 @@ export async function getMentions(filters?: {
   platform?: string
   sentiment?: string
   search?: string
+  productId?: string
   page?: number
   perPage?: number
 }) {
@@ -73,6 +74,7 @@ export async function getMentions(filters?: {
   const where: Record<string, unknown> = {}
   if (filters?.platform) where.platform = filters.platform
   if (filters?.sentiment) where.sentiment = filters.sentiment
+  if (filters?.productId) where.productId = filters.productId
   if (filters?.search) {
     where.OR = [
       { content: { contains: filters.search, mode: "insensitive" } },
@@ -96,23 +98,28 @@ export async function getMentions(filters?: {
   }
 }
 
-export async function getMentionStats() {
+export async function getMentionStats(productId?: string) {
   const { db } = await getOrgContext()
 
+  const where: Record<string, unknown> = {}
+  if (productId) where.productId = productId
+
   // Sequential to avoid connection pool exhaustion (local Prisma Postgres has connection_limit=1)
-  const total = await db.socialMention.count()
-  const positive = await db.socialMention.count({ where: { sentiment: "POSITIVE" } })
-  const negative = await db.socialMention.count({ where: { sentiment: "NEGATIVE" } })
-  const neutral = await db.socialMention.count({ where: { sentiment: "NEUTRAL" } })
-  const mixed = await db.socialMention.count({ where: { sentiment: "MIXED" } })
+  const total = await db.socialMention.count({ where })
+  const positive = await db.socialMention.count({ where: { ...where, sentiment: "POSITIVE" } })
+  const negative = await db.socialMention.count({ where: { ...where, sentiment: "NEGATIVE" } })
+  const neutral = await db.socialMention.count({ where: { ...where, sentiment: "NEUTRAL" } })
+  const mixed = await db.socialMention.count({ where: { ...where, sentiment: "MIXED" } })
 
   const recentMentions = await db.socialMention.findMany({
+    where,
     orderBy: { mentionedAt: "desc" },
     take: 5,
   })
 
   const platformCounts = await db.socialMention.groupBy({
     by: ["platform"],
+    where,
     _count: { id: true },
   })
 

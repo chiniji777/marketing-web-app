@@ -28,7 +28,15 @@ import {
 import { toast } from "sonner"
 import { useTranslations } from "@/hooks/use-locale"
 import { getMentionStats } from "@/server/actions/social"
+import { getProductsSimple } from "@/server/actions/product"
 import { useAIAssist } from "@/hooks/use-ai-assist"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 const PLATFORM_ICONS: Record<string, typeof Globe> = {
   FACEBOOK: Facebook,
@@ -64,16 +72,26 @@ interface MentionStats {
   platformCounts: Array<{ platform: string; count: number }>
 }
 
+interface SimpleProduct {
+  id: string
+  name: string
+  category: string | null
+  marketingDataScore: number
+}
+
 export default function SocialListeningPage() {
   const t = useTranslations()
   const [stats, setStats] = useState<MentionStats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const ai = useAIAssist()
   const [aiInsight, setAiInsight] = useState<string | null>(null)
+  const [products, setProducts] = useState<SimpleProduct[]>([])
+  const [selectedProductId, setSelectedProductId] = useState<string>("all")
 
-  const fetchStats = useCallback(async () => {
+  const fetchStats = useCallback(async (productId?: string) => {
+    setIsLoading(true)
     try {
-      const result = await getMentionStats()
+      const result = await getMentionStats(productId === "all" ? undefined : productId)
       setStats(result as unknown as MentionStats)
     } catch {
       toast.error("Failed to load stats")
@@ -82,7 +100,15 @@ export default function SocialListeningPage() {
     }
   }, [])
 
-  useEffect(() => { fetchStats() }, [fetchStats])
+  useEffect(() => {
+    getProductsSimple().then((p) => setProducts(p as unknown as SimpleProduct[])).catch(() => {})
+    fetchStats()
+  }, [fetchStats])
+
+  const handleProductChange = (value: string) => {
+    setSelectedProductId(value)
+    fetchStats(value)
+  }
 
   const handleAIAnalysis = async () => {
     if (!stats) return
@@ -123,7 +149,20 @@ export default function SocialListeningPage() {
   return (
     <div className="space-y-6">
       <PageHeader heading={t.social.title} description={t.social.subtitle}>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          {products.length > 0 && (
+            <Select value={selectedProductId} onValueChange={handleProductChange}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="เลือกสินค้า" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">ทุกสินค้า</SelectItem>
+                {products.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <Button variant="outline" onClick={handleAIAnalysis} disabled={ai.isLoading || !stats}>
             {ai.isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
             AI วิเคราะห์

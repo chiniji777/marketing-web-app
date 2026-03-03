@@ -348,6 +348,10 @@ export default function ProductDetailPage() {
             <Megaphone className="mr-1 h-3 w-3" />
             แคมเปญ
           </TabsTrigger>
+          <TabsTrigger value="seo">
+            <SearchIcon className="mr-1 h-3 w-3" />
+            SEO
+          </TabsTrigger>
         </TabsList>
 
         {/* ═══ Tab 1: Overview ═══ */}
@@ -930,6 +934,102 @@ export default function ProductDetailPage() {
                 </Card>
               ))}
             </div>
+          )}
+        </TabsContent>
+
+        {/* ═══ Tab 8: SEO ═══ */}
+        <TabsContent value="seo" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold">SEO Keywords & Tools</h3>
+          </div>
+
+          {product.keywords && product.keywords.length > 0 ? (
+            <div className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <SearchIcon className="h-4 w-4" /> Keywords จาก AI
+                  </CardTitle>
+                  <CardDescription>Keywords ที่ AI วิเคราะห์แล้วสำหรับ {product.name}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-2">
+                    {product.keywords.map((kw, i) => (
+                      <Badge key={i} variant="secondary" className="text-sm">
+                        {kw}
+                      </Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {product.uniqueSellingPoints && product.uniqueSellingPoints.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <Target className="h-4 w-4" /> SEO Content Ideas
+                    </CardTitle>
+                    <CardDescription>แนวทางเนื้อหา SEO จากจุดขายหลัก</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {product.uniqueSellingPoints.map((usp, i) => (
+                      <div key={i} className="flex items-start gap-2 rounded-lg border p-3">
+                        <Badge variant="outline" className="shrink-0 text-xs">#{i + 1}</Badge>
+                        <div>
+                          <p className="text-sm font-medium">{usp}</p>
+                          <p className="text-xs text-muted-foreground">สร้างเนื้อหาเชิง SEO เกี่ยวกับหัวข้อนี้</p>
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <BarChart3 className="h-4 w-4" /> SEO Tools
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-3 md:grid-cols-2">
+                  <Link href="/seo/keywords">
+                    <Button variant="outline" className="w-full justify-start">
+                      <SearchIcon className="mr-2 h-4 w-4" />
+                      ติดตาม Keywords
+                    </Button>
+                  </Link>
+                  <Link href="/seo/audit">
+                    <Button variant="outline" className="w-full justify-start">
+                      <BarChart3 className="mr-2 h-4 w-4" />
+                      SEO Audit
+                    </Button>
+                  </Link>
+                  <Link href="/seo/rankings">
+                    <Button variant="outline" className="w-full justify-start">
+                      <TrendingUp className="mr-2 h-4 w-4" />
+                      อันดับ Keywords
+                    </Button>
+                  </Link>
+                  <Link href={`/content/generator?productId=${product.id}`}>
+                    <Button variant="outline" className="w-full justify-start">
+                      <Sparkles className="mr-2 h-4 w-4" />
+                      สร้างเนื้อหา SEO
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            </div>
+          ) : (
+            <Card className="border-dashed">
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <SearchIcon className="mb-4 h-12 w-12 text-muted-foreground" />
+                <h3 className="text-lg font-semibold">ยังไม่มีข้อมูล SEO</h3>
+                <p className="mb-4 text-sm text-muted-foreground">ใช้ AI วิเคราะห์เพื่อรวบรวม Keywords สำหรับ SEO</p>
+                <Link href={`/products/${id}?tab=ai`}>
+                  <Button><Sparkles className="mr-2 h-4 w-4" />เริ่ม AI วิเคราะห์</Button>
+                </Link>
+              </CardContent>
+            </Card>
           )}
         </TabsContent>
       </Tabs>
