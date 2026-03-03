@@ -6,19 +6,19 @@ import { z } from "zod"
 const requestSchema = z.object({
   productId: z.string(),
   productName: z.string(),
-  productDescription: z.string().optional(),
-  productCategory: z.string().optional(),
-  productPrice: z.number().optional(),
+  productDescription: z.string().nullish(),
+  productCategory: z.string().nullish(),
+  productPrice: z.number().nullish(),
   conversationHistory: z.array(
     z.object({
       role: z.enum(["user", "assistant"]),
       content: z.string(),
     })
   ),
-  currentData: z.record(z.string(), z.unknown()).optional(),
+  currentData: z.record(z.string(), z.unknown()).nullish(),
 })
 
-function buildSystemPrompt(productName: string, productDescription?: string, productCategory?: string, productPrice?: number) {
+function buildSystemPrompt(productName: string, productDescription?: string | null, productCategory?: string | null, productPrice?: number | null) {
   const productInfo = [
     `ชื่อสินค้า: "${productName}"`,
     productDescription && `รายละเอียดสินค้า: "${productDescription}"`,
@@ -166,7 +166,11 @@ export async function POST(req: Request) {
   const body = await req.json()
   const parsed = requestSchema.safeParse(body)
   if (!parsed.success) {
-    return new Response(JSON.stringify({ error: parsed.error.flatten() }), {
+    const fieldErrors = parsed.error.flatten().fieldErrors
+    const errorMsg = Object.entries(fieldErrors)
+      .map(([k, v]) => `${k}: ${(v as string[]).join(", ")}`)
+      .join("; ") || "Invalid request data"
+    return new Response(JSON.stringify({ error: errorMsg }), {
       status: 400,
     })
   }

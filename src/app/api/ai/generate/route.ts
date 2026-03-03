@@ -127,7 +127,11 @@ export async function POST(req: Request) {
   const body = await req.json()
   const parsed = generateContentSchema.safeParse(body)
   if (!parsed.success) {
-    return new Response(JSON.stringify({ error: parsed.error.flatten() }), {
+    const fieldErrors = parsed.error.flatten().fieldErrors
+    const errorMsg = Object.entries(fieldErrors)
+      .map(([k, v]) => `${k}: ${(v as string[]).join(", ")}`)
+      .join("; ") || "Invalid request data"
+    return new Response(JSON.stringify({ error: errorMsg }), {
       status: 400,
     })
   }
