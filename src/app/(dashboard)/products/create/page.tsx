@@ -44,6 +44,7 @@ export default function CreateProductPage() {
   const [category, setCategory] = useState("")
   const [price, setPrice] = useState("")
   const [productId, setProductId] = useState<string | null>(null)
+  const [creating, setCreating] = useState(false)
 
   // AI chat
   const [messages, setMessages] = useState<Message[]>([])
@@ -64,6 +65,7 @@ export default function CreateProductPage() {
       return
     }
 
+    setCreating(true)
     try {
       const product = await createProduct({
         name: name.trim(),
@@ -75,8 +77,11 @@ export default function CreateProductPage() {
       setStep("ai")
       // Auto-start AI conversation
       sendToAI([])
-    } catch {
-      toast.error("ไม่สามารถสร้างสินค้าได้")
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "ไม่สามารถสร้างสินค้าได้"
+      toast.error(message)
+    } finally {
+      setCreating(false)
     }
   }
 
@@ -236,10 +241,19 @@ export default function CreateProductPage() {
               </div>
             </div>
 
-            <Button onClick={handleCreateProduct} className="w-full" size="lg">
-              <Sparkles className="mr-2 h-4 w-4" />
-              สร้างสินค้า & เริ่มวิเคราะห์ด้วย AI
-              <ArrowRight className="ml-2 h-4 w-4" />
+            <Button onClick={handleCreateProduct} className="w-full" size="lg" disabled={creating || !name.trim()}>
+              {creating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  กำลังสร้างสินค้า...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  สร้างสินค้า & เริ่มวิเคราะห์ด้วย AI
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </>
+              )}
             </Button>
           </CardContent>
         </Card>

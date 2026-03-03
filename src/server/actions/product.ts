@@ -97,20 +97,27 @@ export async function createProduct(input: CreateProductInput) {
   const { organizationId, db } = await getOrgContext()
   const parsed = createProductSchema.parse(input)
 
-  const product = await db.product.create({
-    data: {
-      organizationId,
-      name: parsed.name,
-      description: parsed.description,
-      category: parsed.category,
-      price: parsed.price,
-      currency: parsed.currency || "THB",
-      images: parsed.images || [],
-    },
-  })
+  try {
+    const product = await db.product.create({
+      data: {
+        organizationId,
+        name: parsed.name,
+        description: parsed.description,
+        category: parsed.category,
+        price: parsed.price ?? undefined,
+        currency: parsed.currency || "THB",
+        images: parsed.images || [],
+      },
+    })
 
-  revalidatePath("/products")
-  return serializePrisma(product)
+    revalidatePath("/products")
+    return serializePrisma(product)
+  } catch (err) {
+    console.error("createProduct error:", err)
+    throw new Error(
+      `ไม่สามารถสร้างสินค้าได้: ${err instanceof Error ? err.message : "Unknown error"}`
+    )
+  }
 }
 
 // ─── Update Product ─────────────────────────────────────────
