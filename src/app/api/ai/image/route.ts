@@ -9,6 +9,9 @@ const requestSchema = z.object({
   style: z.enum(["vivid", "natural"]).default("vivid"),
   quality: z.enum(["standard", "hd"]).default("standard"),
   productId: z.string().optional(),
+  contentType: z.string().optional(),
+  platform: z.string().optional(),
+  generatedContent: z.string().max(2000).optional(),
 })
 
 async function enrichPromptWithProduct(prompt: string, productId: string): Promise<string> {
@@ -77,12 +80,46 @@ export async function POST(req: Request) {
     return new Response(JSON.stringify({ error: errorMsg }), { status: 400 })
   }
 
-  const { prompt, size, style, quality, productId } = parsed.data
+  const { prompt, size, style, quality, productId, contentType, platform, generatedContent } = parsed.data
+
+  // Build a rich image prompt using all available context
+  const promptParts: string[] = [prompt]
+
+  if (contentType) {
+    const formatHints: Record<string, string> = {
+      SOCIAL_POST: "Create a visually striking social media graphic",
+      BLOG_POST: "Create a professional blog header/featured image",
+      AD_COPY: "Create a high-converting advertisement visual",
+      EMAIL: "Create a clean, professional email banner image",
+      LANDING_PAGE: "Create a hero image suitable for a landing page",
+      VIDEO_SCRIPT: "Create a video thumbnail or cover image",
+    }
+    if (formatHints[contentType]) promptParts.unshift(formatHints[contentType])
+  }
+
+  if (platform && platform !== "general") {
+    const platformHints: Record<string, string> = {
+      instagram: "Optimized for Instagram: vibrant, eye-catching, square-friendly",
+      facebook: "Optimized for Facebook: engaging, share-worthy",
+      twitter: "Optimized for Twitter/X: clean, bold, attention-grabbing",
+      linkedin: "Optimized for LinkedIn: professional, polished",
+      tiktok: "Optimized for TikTok: trendy, dynamic, youthful",
+    }
+    if (platformHints[platform]) promptParts.push(platformHints[platform])
+  }
+
+  if (generatedContent) {
+    // Use a summary of the generated content to guide the image
+    const contentSummary = generatedContent.slice(0, 500)
+    promptParts.push(`The image should visually represent this content: ${contentSummary}`)
+  }
+
+  const basePrompt = promptParts.join(". ")
 
   // Enrich prompt with product context if available
   const enrichedPrompt = productId
-    ? await enrichPromptWithProduct(prompt, productId)
-    : prompt
+    ? await enrichPromptWithProduct(basePrompt, productId)
+    : basePrompt
 
   try {
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })

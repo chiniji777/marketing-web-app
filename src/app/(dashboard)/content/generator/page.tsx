@@ -237,6 +237,9 @@ function ContentGeneratorInner() {
           style: imageStyle,
           quality: "standard",
           productId: selectedProductId !== "none" ? selectedProductId : undefined,
+          contentType,
+          platform: contentType === "SOCIAL_POST" ? platform : undefined,
+          generatedContent: completion || undefined,
         }),
       })
 
@@ -254,7 +257,7 @@ function ContentGeneratorInner() {
     } finally {
       setIsGeneratingImage(false)
     }
-  }, [topic, imageSize, imageStyle])
+  }, [topic, imageSize, imageStyle, selectedProductId, contentType, platform, completion])
 
   const wordCount = completion
     ? completion.split(/\s+/).filter(Boolean).length
