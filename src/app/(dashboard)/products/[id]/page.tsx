@@ -17,6 +17,7 @@ import {
   TrendingUp,
   Send,
   Loader2,
+  RotateCcw,
   Save,
   BarChart3,
   Shield,
@@ -507,6 +508,19 @@ export default function ProductDetailPage() {
             {messages.length > 0 && (
               <div className="border-t p-4">
                 <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => {
+                      setMessages([])
+                      setNewMarketingData(null)
+                      setInput("")
+                    }}
+                    disabled={streaming}
+                    title="ถามใหม่"
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                  </Button>
                   <Input
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
