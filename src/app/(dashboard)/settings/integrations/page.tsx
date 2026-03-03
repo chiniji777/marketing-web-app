@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { Suspense, useState, useEffect, useCallback } from "react"
 import { useSearchParams } from "next/navigation"
 import { PageHeader } from "@/components/shared/page-header"
 import { Button } from "@/components/ui/button"
@@ -141,6 +141,14 @@ interface SocialAccountItem {
 }
 
 export default function IntegrationsSettingsPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>}>
+      <IntegrationsInner />
+    </Suspense>
+  )
+}
+
+function IntegrationsInner() {
   const searchParams = useSearchParams()
   const [accounts, setAccounts] = useState<SocialAccountItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
