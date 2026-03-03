@@ -8,7 +8,7 @@ const requestSchema = z.object({
   productName: z.string(),
   productDescription: z.string().nullish(),
   productCategory: z.string().nullish(),
-  productPrice: z.number().nullish(),
+  productPrice: z.coerce.number().nullish(),
   conversationHistory: z.array(
     z.object({
       role: z.enum(["user", "assistant"]),
