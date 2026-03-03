@@ -1,7 +1,6 @@
 "use server"
 
-import { auth } from "@/lib/auth"
-import { getTenantPrisma } from "@/lib/prisma-extension"
+import { getOrgContext } from "@/server/lib/org-context"
 import { prisma } from "@/lib/prisma"
 import {
   createContentSchema,
@@ -12,18 +11,6 @@ import {
   type CreateTemplateInput,
 } from "@/server/validators/content"
 import { revalidatePath } from "next/cache"
-
-async function getOrgContext() {
-  const session = await auth()
-  if (!session?.user?.id || !session.user.activeOrganizationId) {
-    throw new Error("Unauthorized")
-  }
-  return {
-    userId: session.user.id,
-    organizationId: session.user.activeOrganizationId,
-    db: getTenantPrisma(session.user.activeOrganizationId),
-  }
-}
 
 // ─── Content CRUD ────────────────────────────────────────────
 

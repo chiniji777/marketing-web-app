@@ -1,6 +1,6 @@
 "use server"
 
-import { auth } from "@/lib/auth"
+import { getOrgContext } from "@/server/lib/org-context"
 import { getTenantPrisma } from "@/lib/prisma-extension"
 import {
   createAdsCampaignSchema,
@@ -27,18 +27,6 @@ import {
   deleteObject as fbDeleteObject,
   getPages as fbGetPages,
 } from "@/lib/facebook"
-
-async function getOrgContext() {
-  const session = await auth()
-  if (!session?.user?.id || !session.user.activeOrganizationId) {
-    throw new Error("Unauthorized")
-  }
-  return {
-    userId: session.user.id,
-    organizationId: session.user.activeOrganizationId,
-    db: getTenantPrisma(session.user.activeOrganizationId),
-  }
-}
 
 // ─── Ad Campaigns ────────────────────────────────────────────
 
