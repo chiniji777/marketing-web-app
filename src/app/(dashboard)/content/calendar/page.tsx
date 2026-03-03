@@ -6,6 +6,16 @@ import { PageHeader } from "@/components/shared/page-header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import {
   Select,
   SelectContent,
@@ -27,6 +37,8 @@ import {
   Sparkles,
   GripVertical,
   Package,
+  Clock,
+  Loader2,
 } from "lucide-react"
 import { toast } from "sonner"
 import { getContents } from "@/server/actions/content"
@@ -82,6 +94,15 @@ export default function ContentCalendarPage() {
   const [dropTarget, setDropTarget] = useState<string | null>(null)
   const [filterProduct, setFilterProduct] = useState("all")
   const [products, setProducts] = useState<SimpleProduct[]>([])
+
+  // Schedule dialog state
+  const [scheduleDialog, setScheduleDialog] = useState<{
+    open: boolean
+    item: ContentEvent | null
+    date: Date | null
+    time: string
+  }>({ open: false, item: null, date: null, time: "09:00" })
+  const [isScheduling, setIsScheduling] = useState(false)
 
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
@@ -164,32 +185,49 @@ export default function ContentCalendarPage() {
     setDropTarget(null)
   }
 
-  const handleDrop = async (e: React.DragEvent, date: Date) => {
+  const handleDrop = (e: React.DragEvent, date: Date) => {
     e.preventDefault()
     setDropTarget(null)
 
     if (!draggedItem) return
 
-    // Set to 9 AM on the dropped date
-    const scheduledAt = new Date(date)
-    scheduledAt.setHours(9, 0, 0, 0)
+    // Open the schedule dialog with the dropped date
+    setScheduleDialog({
+      open: true,
+      item: draggedItem,
+      date,
+      time: "09:00",
+    })
+    setDraggedItem(null)
+  }
+
+  const confirmSchedule = async () => {
+    if (!scheduleDialog.item || !scheduleDialog.date) return
+
+    setIsScheduling(true)
+    const [hours, minutes] = scheduleDialog.time.split(":").map(Number)
+    const scheduledAt = new Date(scheduleDialog.date)
+    scheduledAt.setHours(hours, minutes, 0, 0)
 
     try {
-      await updateContentSchedule(draggedItem.id, scheduledAt.toISOString())
-      toast.success(`"${draggedItem.title}" ถูกกำหนดเวลาเรียบร้อย`)
+      await updateContentSchedule(scheduleDialog.item.id, scheduledAt.toISOString())
+      toast.success(
+        `"${scheduleDialog.item.title}" กำหนดโพสวันที่ ${scheduledAt.toLocaleDateString("th-TH", { day: "numeric", month: "short" })} เวลา ${scheduleDialog.time} น.`
+      )
 
       // Update local state
       setContents((prev) =>
         prev.map((c) =>
-          c.id === draggedItem.id
+          c.id === scheduleDialog.item!.id
             ? { ...c, scheduledAt: scheduledAt.toISOString(), status: "SCHEDULED" }
             : c
         )
       )
+      setScheduleDialog({ open: false, item: null, date: null, time: "09:00" })
     } catch {
       toast.error("ไม่สามารถกำหนดเวลาได้")
     } finally {
-      setDraggedItem(null)
+      setIsScheduling(false)
     }
   }
 
@@ -419,6 +457,9 @@ export default function ContentCalendarPage() {
                     <div className="space-y-0.5">
                       {dayEvents.slice(0, 3).map((event) => {
                         const TypeIcon = TYPE_ICONS[event.contentType] ?? FileText
+                        const eventTime = event.scheduledAt
+                          ? new Date(event.scheduledAt).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })
+                          : null
                         return (
                           <Link
                             key={event.id}
@@ -428,6 +469,9 @@ export default function ContentCalendarPage() {
                             }`}
                           >
                             <TypeIcon className="h-3 w-3 shrink-0" />
+                            {eventTime && (
+                              <span className="shrink-0 opacity-70">{eventTime}</span>
+                            )}
                             <span className="truncate">{event.title}</span>
                             {event.aiGenerated && (
                               <Sparkles className="h-2.5 w-2.5 shrink-0" />
@@ -448,6 +492,104 @@ export default function ContentCalendarPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Schedule Time Dialog */}
+      <Dialog
+        open={scheduleDialog.open}
+        onOpenChange={(open) => {
+          if (!open) setScheduleDialog({ open: false, item: null, date: null, time: "09:00" })
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5" />
+              กำหนดเวลาโพส
+            </DialogTitle>
+            <DialogDescription>
+              เลือกวันและเวลาที่ต้องการโพส &quot;{scheduleDialog.item?.title}&quot;
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>วันที่</Label>
+              <Input
+                type="date"
+                value={scheduleDialog.date ? scheduleDialog.date.toISOString().split("T")[0] : ""}
+                onChange={(e) => {
+                  const newDate = new Date(e.target.value)
+                  if (!isNaN(newDate.getTime())) {
+                    setScheduleDialog((prev) => ({ ...prev, date: newDate }))
+                  }
+                }}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>เวลาโพส</Label>
+              <Input
+                type="time"
+                value={scheduleDialog.time}
+                onChange={(e) => setScheduleDialog((prev) => ({ ...prev, time: e.target.value }))}
+              />
+              <div className="flex flex-wrap gap-2">
+                {["06:00", "09:00", "12:00", "15:00", "18:00", "21:00"].map((t) => (
+                  <Button
+                    key={t}
+                    variant={scheduleDialog.time === t ? "default" : "outline"}
+                    size="sm"
+                    className="text-xs"
+                    onClick={() => setScheduleDialog((prev) => ({ ...prev, time: t }))}
+                  >
+                    {t} น.
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {scheduleDialog.date && (
+              <div className="rounded-lg border bg-muted/50 p-3">
+                <p className="text-sm">
+                  <span className="font-medium">สรุป:</span> โพสวันที่{" "}
+                  {scheduleDialog.date.toLocaleDateString("th-TH", {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  })}{" "}
+                  เวลา {scheduleDialog.time} น.
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  * ตอนนี้ระบบเป็นการวางแผนโพส — คุณจะได้รับการแจ้งเตือนเมื่อถึงเวลาที่กำหนด
+                </p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setScheduleDialog({ open: false, item: null, date: null, time: "09:00" })}
+            >
+              ยกเลิก
+            </Button>
+            <Button onClick={confirmSchedule} disabled={isScheduling || !scheduleDialog.date}>
+              {isScheduling ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  กำลังบันทึก...
+                </>
+              ) : (
+                <>
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  กำหนดเวลา
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
