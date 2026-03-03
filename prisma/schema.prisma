@@ -229,6 +229,7 @@ model Content {
   language       String        @default("en")
   aiGenerated    Boolean       @default(false)
   aiPrompt       String?       @db.Text
+  featuredImage  String?       @db.Text
   seoScore       Int?
   createdById    String
   approvedById   String?

@@ -94,6 +94,7 @@ export async function createContent(input: CreateContentInput) {
       language: parsed.language,
       aiGenerated: parsed.aiGenerated,
       aiPrompt: parsed.aiPrompt,
+      featuredImage: parsed.featuredImage,
       createdById: userId,
       organizationId,
       campaignId: parsed.campaignId,

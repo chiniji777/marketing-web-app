@@ -47,6 +47,7 @@ export const createProductContentSchema = z.object({
   language: z.string().optional(),
   aiGenerated: z.boolean().optional(),
   aiPrompt: z.string().optional(),
+  featuredImage: z.string().optional(),
 })
 
 export const createProductEmailCampaignSchema = z.object({

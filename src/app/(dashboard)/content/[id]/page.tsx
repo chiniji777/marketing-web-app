@@ -96,7 +96,21 @@ export default async function ContentDetailPage({
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Main Content */}
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 space-y-6">
+          {content.featuredImage && (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="overflow-hidden rounded-lg border">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={content.featuredImage}
+                    alt={content.title}
+                    className="h-auto w-full"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          )}
           <Card>
             <CardContent className="pt-6">
               <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap">

@@ -188,6 +188,7 @@ function ContentGeneratorInner() {
           language,
           aiGenerated: true,
           aiPrompt: topic,
+          featuredImage: imageUrl || undefined,
         })
       } else {
         // Save without product
@@ -199,15 +200,16 @@ function ContentGeneratorInner() {
           language,
           aiGenerated: true,
           aiPrompt: topic,
+          featuredImage: imageUrl || undefined,
         })
       }
-      toast.success("บันทึกเนื้อหาเรียบร้อย")
+      toast.success(imageUrl ? "บันทึกเนื้อหาและภาพเรียบร้อย" : "บันทึกเนื้อหาเรียบร้อย")
     } catch {
       toast.error("ไม่สามารถบันทึกได้")
     } finally {
       setIsSaving(false)
     }
-  }, [completion, topic, contentType, tone, language, selectedProductId])
+  }, [completion, topic, contentType, tone, language, selectedProductId, imageUrl])
 
   const handleReset = useCallback(() => {
     setTopic("")

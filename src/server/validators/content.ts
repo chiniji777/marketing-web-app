@@ -44,6 +44,7 @@ export const createContentSchema = z.object({
   language: z.string().default("en"),
   aiGenerated: z.boolean().default(false),
   aiPrompt: z.string().optional(),
+  featuredImage: z.string().optional(),
   campaignId: z.string().optional(),
   tagIds: z.array(z.string()).optional(),
 })

@@ -211,6 +211,7 @@ export async function createProductContent(input: CreateProductContentInput) {
       language: parsed.language,
       aiGenerated: parsed.aiGenerated,
       aiPrompt: parsed.aiPrompt,
+      featuredImage: parsed.featuredImage,
       productId: parsed.productId,
       createdById: userId,
       organizationId,
