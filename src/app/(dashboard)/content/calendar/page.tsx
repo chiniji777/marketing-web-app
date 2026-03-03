@@ -40,9 +40,11 @@ import {
   Clock,
   Loader2,
 } from "lucide-react"
+import { Checkbox } from "@/components/ui/checkbox"
 import { toast } from "sonner"
 import { getContents } from "@/server/actions/content"
 import { updateContentSchedule, getProductsSimple } from "@/server/actions/product"
+import { getSocialAccounts, schedulePost } from "@/server/actions/social"
 
 const TYPE_ICONS: Record<string, typeof FileText> = {
   SOCIAL_POST: Hash,
@@ -80,6 +82,23 @@ interface SimpleProduct {
   marketingDataScore: number
 }
 
+const PLATFORM_LABELS: Record<string, { name: string; color: string }> = {
+  FACEBOOK: { name: "Facebook", color: "bg-blue-600" },
+  INSTAGRAM: { name: "Instagram", color: "bg-pink-600" },
+  TWITTER: { name: "Twitter/X", color: "bg-sky-500" },
+  LINKEDIN: { name: "LinkedIn", color: "bg-blue-800" },
+  TIKTOK: { name: "TikTok", color: "bg-gray-900" },
+  YOUTUBE: { name: "YouTube", color: "bg-red-600" },
+  PINTEREST: { name: "Pinterest", color: "bg-red-700" },
+}
+
+interface SocialAccountItem {
+  id: string
+  platform: string
+  accountName: string
+  isActive: boolean
+}
+
 const WEEKDAYS = ["อา.", "จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส."]
 const MONTHS = [
   "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
@@ -94,6 +113,10 @@ export default function ContentCalendarPage() {
   const [dropTarget, setDropTarget] = useState<string | null>(null)
   const [filterProduct, setFilterProduct] = useState("all")
   const [products, setProducts] = useState<SimpleProduct[]>([])
+
+  // Social accounts
+  const [socialAccounts, setSocialAccounts] = useState<SocialAccountItem[]>([])
+  const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([])
 
   // Schedule dialog state
   const [scheduleDialog, setScheduleDialog] = useState<{
@@ -122,6 +145,10 @@ export default function ContentCalendarPage() {
   useEffect(() => {
     fetchContents()
     getProductsSimple().then((data) => setProducts(data as unknown as SimpleProduct[])).catch(() => {})
+    getSocialAccounts().then((data) => {
+      const active = (data as unknown as SocialAccountItem[]).filter((a) => a.isActive)
+      setSocialAccounts(active)
+    }).catch(() => {})
   }, [fetchContents])
 
   const calendarDays = useMemo(() => {
@@ -198,6 +225,8 @@ export default function ContentCalendarPage() {
       date,
       time: "09:00",
     })
+    // Pre-select all active social accounts
+    setSelectedAccountIds(socialAccounts.map((a) => a.id))
     setDraggedItem(null)
   }
 
@@ -211,8 +240,20 @@ export default function ContentCalendarPage() {
 
     try {
       await updateContentSchedule(scheduleDialog.item.id, scheduledAt.toISOString())
+
+      // Create ContentPosts for selected social accounts
+      if (selectedAccountIds.length > 0) {
+        await schedulePost({
+          contentId: scheduleDialog.item.id,
+          socialAccountIds: selectedAccountIds,
+          scheduledAt: scheduledAt.toISOString(),
+        })
+      }
+
+      const accountCount = selectedAccountIds.length
+      const channelText = accountCount > 0 ? ` (${accountCount} ช่องทาง)` : ""
       toast.success(
-        `"${scheduleDialog.item.title}" กำหนดโพสวันที่ ${scheduledAt.toLocaleDateString("th-TH", { day: "numeric", month: "short" })} เวลา ${scheduleDialog.time} น.`
+        `"${scheduleDialog.item.title}" กำหนดโพสวันที่ ${scheduledAt.toLocaleDateString("th-TH", { day: "numeric", month: "short" })} เวลา ${scheduleDialog.time} น.${channelText}`
       )
 
       // Update local state
@@ -224,6 +265,7 @@ export default function ContentCalendarPage() {
         )
       )
       setScheduleDialog({ open: false, item: null, date: null, time: "09:00" })
+      setSelectedAccountIds([])
     } catch {
       toast.error("ไม่สามารถกำหนดเวลาได้")
     } finally {
@@ -548,6 +590,69 @@ export default function ContentCalendarPage() {
               </div>
             </div>
 
+            {/* Social Account Selection */}
+            <div className="space-y-2">
+              <Label>ช่องทางที่จะโพส</Label>
+              {socialAccounts.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  ยังไม่มีบัญชีโซเชียลที่เชื่อมต่อ — ไปที่{" "}
+                  <Link href="/settings/integrations" className="text-primary underline">
+                    การตั้งค่า
+                  </Link>{" "}
+                  เพื่อเชื่อมต่อ
+                </p>
+              ) : (
+                <div className="space-y-2 rounded-lg border p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">
+                      เลือก {selectedAccountIds.length}/{socialAccounts.length} บัญชี
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 text-xs"
+                      onClick={() => {
+                        if (selectedAccountIds.length === socialAccounts.length) {
+                          setSelectedAccountIds([])
+                        } else {
+                          setSelectedAccountIds(socialAccounts.map((a) => a.id))
+                        }
+                      }}
+                    >
+                      {selectedAccountIds.length === socialAccounts.length ? "ยกเลิกทั้งหมด" : "เลือกทั้งหมด"}
+                    </Button>
+                  </div>
+                  {socialAccounts.map((account) => {
+                    const platform = PLATFORM_LABELS[account.platform] || { name: account.platform, color: "bg-gray-500" }
+                    const isSelected = selectedAccountIds.includes(account.id)
+                    return (
+                      <label
+                        key={account.id}
+                        className="flex cursor-pointer items-center gap-3 rounded-md p-2 transition-colors hover:bg-muted/50"
+                      >
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={(checked) => {
+                            setSelectedAccountIds((prev) =>
+                              checked
+                                ? [...prev, account.id]
+                                : prev.filter((id) => id !== account.id)
+                            )
+                          }}
+                        />
+                        <div className={`h-2.5 w-2.5 rounded-full ${platform.color}`} />
+                        <div className="flex-1">
+                          <span className="text-sm font-medium">{platform.name}</span>
+                          <span className="ml-2 text-xs text-muted-foreground">{account.accountName}</span>
+                        </div>
+                      </label>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
             {scheduleDialog.date && (
               <div className="rounded-lg border bg-muted/50 p-3">
                 <p className="text-sm">
@@ -559,9 +664,17 @@ export default function ContentCalendarPage() {
                     year: "numeric",
                   })}{" "}
                   เวลา {scheduleDialog.time} น.
+                  {selectedAccountIds.length > 0 && (
+                    <span className="ml-1">
+                      ไปยัง {selectedAccountIds.length} ช่องทาง
+                    </span>
+                  )}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  * ตอนนี้ระบบเป็นการวางแผนโพส — คุณจะได้รับการแจ้งเตือนเมื่อถึงเวลาที่กำหนด
+                  {selectedAccountIds.length > 0
+                    ? "* ระบบจะโพสอัตโนมัติเมื่อถึงเวลาที่กำหนด (ตรวจสอบทุก 15 นาที)"
+                    : "* ไม่ได้เลือกช่องทาง — จะบันทึกเป็นแผนในปฏิทินเท่านั้น"
+                  }
                 </p>
               </div>
             )}
