@@ -22,6 +22,7 @@ import {
   Megaphone,
   Layout,
 } from "lucide-react"
+import { ContentReviewSection } from "@/components/content/content-review-section"
 
 const TYPE_LABELS: Record<string, string> = {
   SOCIAL_POST: "Social Post",
@@ -118,6 +119,12 @@ export default async function ContentDetailPage({
               </div>
             </CardContent>
           </Card>
+
+          {/* Review Section */}
+          <ContentReviewSection
+            contentId={content.id}
+            contentStatus={content.status}
+          />
         </div>
 
         {/* Sidebar */}
