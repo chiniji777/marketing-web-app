@@ -1,6 +1,7 @@
 "use server"
 
 import { getOrgContext } from "@/server/lib/org-context"
+import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
 
 // ─── Types ──────────────────────────────────────────────────
@@ -26,13 +27,21 @@ interface ReviewResult {
   createdAt: string | Date
 }
 
+// ─── Helpers ────────────────────────────────────────────────
+
+async function getReviewerRole(userId: string, organizationId: string): Promise<string> {
+  const membership = await prisma.membership.findFirst({
+    where: { userId, organizationId, isActive: true },
+    select: { role: true },
+  })
+  if (membership?.role === "ADMIN" || membership?.role === "OWNER") return "owner"
+  return "member"
+}
+
 // ─── Submit Review ──────────────────────────────────────────
-// TODO: Backend — requires ContentReview model in Prisma schema
-// Model should have: id, contentId, reviewerId, score (Int), comment (Text),
-//                     action (approve/request_changes), reviewerRole, createdAt
 
 export async function submitReview(input: SubmitReviewInput): Promise<ReviewResult> {
-  const { userId, db } = await getOrgContext()
+  const { userId, organizationId, db } = await getOrgContext()
 
   if (input.score < 1 || input.score > 10) {
     throw new Error("Score must be between 1 and 10")
@@ -41,17 +50,30 @@ export async function submitReview(input: SubmitReviewInput): Promise<ReviewResu
     throw new Error("Comment is required")
   }
 
-  // TODO: Replace with actual Prisma call when ContentReview model is added
-  // const review = await db.contentReview.create({
-  //   data: {
-  //     contentId: input.contentId,
-  //     reviewerId: userId,
-  //     score: input.score,
-  //     comment: input.comment,
-  //     action: input.action,
-  //   },
-  //   include: { reviewer: { select: { id: true, name: true, image: true } } },
-  // })
+  // Verify content belongs to this org
+  const content = await db.content.findFirst({
+    where: { id: input.contentId },
+    select: { id: true },
+  })
+  if (!content) throw new Error("Content not found")
+
+  const reviewerRole = await getReviewerRole(userId, organizationId)
+  const actionEnum = input.action === "approve" ? "APPROVE" : "REQUEST_CHANGES"
+
+  // Create review record
+  const review = await prisma.contentReview.create({
+    data: {
+      contentId: input.contentId,
+      reviewerId: userId,
+      score: input.score,
+      comment: input.comment.trim(),
+      action: actionEnum,
+      reviewerRole,
+    },
+    include: {
+      reviewer: { select: { id: true, name: true, image: true } },
+    },
+  })
 
   // Update content status based on action
   const newStatus = input.action === "approve" ? "APPROVED" : "DRAFT"
@@ -60,74 +82,79 @@ export async function submitReview(input: SubmitReviewInput): Promise<ReviewResu
     data: { status: newStatus },
   })
 
-  // Temporary: return constructed result until ContentReview model exists
-  const user = await db.user.findUnique({
-    where: { id: userId },
-    select: { id: true, name: true, image: true },
-  })
-
   revalidatePath(`/content/${input.contentId}`)
   revalidatePath("/content")
 
   return {
-    id: crypto.randomUUID(),
-    score: input.score,
-    comment: input.comment,
+    id: review.id,
+    score: review.score,
+    comment: review.comment,
     action: input.action,
-    reviewerRole: "member",
-    reviewer: user ?? { id: userId, name: null, image: null },
-    createdAt: new Date().toISOString(),
+    reviewerRole: review.reviewerRole as "owner" | "qa" | "member",
+    reviewer: review.reviewer,
+    createdAt: review.createdAt,
   }
 }
 
 // ─── Get Reviews ────────────────────────────────────────────
-// TODO: Backend — requires ContentReview model
 
-export async function getReviews(_contentId: string): Promise<ReviewResult[]> {
+export async function getReviews(contentId: string): Promise<ReviewResult[]> {
   await getOrgContext() // auth check
 
-  // TODO: Replace with actual Prisma call when ContentReview model is added
-  // const reviews = await db.contentReview.findMany({
-  //   where: { contentId },
-  //   include: { reviewer: { select: { id: true, name: true, image: true } } },
-  //   orderBy: { createdAt: "desc" },
-  // })
+  const reviews = await prisma.contentReview.findMany({
+    where: { contentId },
+    include: {
+      reviewer: { select: { id: true, name: true, image: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  })
 
-  return []
+  return reviews.map((r) => ({
+    id: r.id,
+    score: r.score,
+    comment: r.comment,
+    action: r.action === "APPROVE" ? "approve" as const : "request_changes" as const,
+    reviewerRole: r.reviewerRole as "owner" | "qa" | "member",
+    reviewer: r.reviewer,
+    createdAt: r.createdAt,
+  }))
 }
 
 // ─── Update AI Memory ───────────────────────────────────────
-// TODO: Backend — requires AiMemoryLog model + AI integration
-// Collects all review comments for this content and sends to AI memory endpoint
+// Collects all review feedback for this content and stores as AI learning data
 
 export async function updateAiMemory(contentId: string): Promise<void> {
   const { db } = await getOrgContext()
 
-  // Verify content exists
   const content = await db.content.findFirst({
     where: { id: contentId },
     select: { id: true, title: true, body: true, aiPrompt: true },
   })
+  if (!content) throw new Error("Content not found")
 
-  if (!content) {
-    throw new Error("Content not found")
-  }
+  // Fetch all reviews for this content
+  const reviews = await prisma.contentReview.findMany({
+    where: { contentId },
+    select: { score: true, comment: true, action: true, reviewerRole: true },
+    orderBy: { createdAt: "desc" },
+  })
 
-  // TODO: When ContentReview model exists:
-  // 1. Fetch all reviews for this content
-  // 2. Aggregate feedback patterns
-  // 3. Store in AiMemoryLog model
-  // 4. Call AI endpoint to update memory/preferences
+  if (reviews.length === 0) throw new Error("No reviews to learn from")
 
-  // TODO: Replace with actual AI memory update logic
-  // const reviews = await db.contentReview.findMany({ where: { contentId } })
-  // await db.aiMemoryLog.create({
-  //   data: {
-  //     contentId,
-  //     feedbackSummary: JSON.stringify(reviews),
-  //     appliedAt: new Date(),
-  //   },
-  // })
+  // Store feedback summary in content metadata (using aiPrompt field as memory)
+  // TODO: When AiMemoryLog model is added by backend, store there instead
+  const feedbackSummary = reviews.map((r) =>
+    `[${r.reviewerRole}] Score:${r.score}/10 Action:${r.action} — ${r.comment}`
+  ).join(" | ")
+
+  await db.content.update({
+    where: { id: contentId },
+    data: {
+      aiPrompt: content.aiPrompt
+        ? `${content.aiPrompt}\n\n--- Review Feedback ---\n${feedbackSummary}`
+        : `--- Review Feedback ---\n${feedbackSummary}`,
+    },
+  })
 
   revalidatePath(`/content/${contentId}`)
 }

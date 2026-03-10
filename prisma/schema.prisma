@@ -30,6 +30,7 @@ model User {
   activityLogs   ActivityLog[]
   notifications  Notification[]
   comments       Comment[]
+  contentReviews ContentReview[]
 
   @@map("users")
 }
@@ -241,6 +242,7 @@ model Content {
   organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   createdBy    User          @relation(fields: [createdById], references: [id])
   posts        ContentPost[]
+  reviews      ContentReview[]
   campaign     Campaign?     @relation(fields: [campaignId], references: [id])
   campaignId   String?
   tags         Tag[]
@@ -274,6 +276,29 @@ model ContentPost {
 
   @@index([contentId])
   @@map("content_posts")
+}
+
+model ContentReview {
+  id           String       @id @default(cuid())
+  contentId    String
+  reviewerId   String
+  score        Int
+  comment      String       @db.Text
+  action       ReviewAction
+  reviewerRole String       @default("member")
+  createdAt    DateTime     @default(now())
+
+  content  Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  reviewer User    @relation(fields: [reviewerId], references: [id])
+
+  @@index([contentId])
+  @@index([reviewerId])
+  @@map("content_reviews")
+}
+
+enum ReviewAction {
+  APPROVE
+  REQUEST_CHANGES
 }
 
 model ContentTemplate {

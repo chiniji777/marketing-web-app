@@ -12,20 +12,33 @@ interface ContentReviewSectionProps {
 
 export function ContentReviewSection({ contentId, contentStatus }: ContentReviewSectionProps) {
   const [hasReviews, setHasReviews] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   const handleReviewsLoaded = useCallback((loaded: boolean) => {
     setHasReviews(loaded)
   }, [])
 
+  const handleReviewSubmitted = useCallback(() => {
+    setRefreshKey((k) => k + 1)
+  }, [])
+
   return (
     <div className="space-y-4">
-      <ReviewPanel contentId={contentId} contentStatus={contentStatus} />
+      <ReviewPanel
+        contentId={contentId}
+        contentStatus={contentStatus}
+        onReviewSubmitted={handleReviewSubmitted}
+      />
 
       <div className="flex gap-2">
         <AiMemoryButton contentId={contentId} hasReviews={hasReviews} />
       </div>
 
-      <ReviewHistory contentId={contentId} onReviewsLoaded={handleReviewsLoaded} />
+      <ReviewHistory
+        key={refreshKey}
+        contentId={contentId}
+        onReviewsLoaded={handleReviewsLoaded}
+      />
     </div>
   )
 }

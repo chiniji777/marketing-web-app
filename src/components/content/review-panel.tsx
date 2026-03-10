@@ -25,9 +25,10 @@ function getScoreLabel(score: number) {
 interface ReviewPanelProps {
   contentId: string
   contentStatus: string
+  onReviewSubmitted?: () => void
 }
 
-export function ReviewPanel({ contentId, contentStatus }: ReviewPanelProps) {
+export function ReviewPanel({ contentId, contentStatus, onReviewSubmitted }: ReviewPanelProps) {
   const [score, setScore] = useState(7)
   const [comment, setComment] = useState("")
   const [isPending, startTransition] = useTransition()
@@ -52,6 +53,7 @@ export function ReviewPanel({ contentId, contentStatus }: ReviewPanelProps) {
         toast.success(action === "approve" ? "Content approved!" : "Changes requested")
         setComment("")
         setScore(7)
+        onReviewSubmitted?.()
       } catch {
         toast.error("Failed to submit review")
       }
