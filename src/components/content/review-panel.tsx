@@ -97,6 +97,8 @@ export function ReviewPanel({ contentId, contentStatus, onReviewSubmitted }: Rev
               onChange={(e) => setScore(Number(e.target.value))}
               className="w-full cursor-pointer opacity-0 h-2 -mt-2 relative"
               disabled={!canReview || isPending}
+              aria-label="Score"
+              aria-valuetext={getScoreLabel(score)}
             />
             <div className="flex justify-between text-[10px] text-muted-foreground">
               <span>1</span>

@@ -34,7 +34,8 @@ async function getReviewerRole(userId: string, organizationId: string): Promise<
     where: { userId, organizationId, isActive: true },
     select: { role: true },
   })
-  if (membership?.role === "ADMIN" || membership?.role === "OWNER") return "owner"
+  if (membership?.role === "ADMIN") return "owner"
+  if (membership?.role === "MANAGER") return "qa"
   return "member"
 }
 
@@ -142,17 +143,21 @@ export async function updateAiMemory(contentId: string): Promise<void> {
   if (reviews.length === 0) throw new Error("No reviews to learn from")
 
   // Store feedback summary in content metadata (using aiPrompt field as memory)
+  // Replace existing feedback section instead of appending to prevent duplicates
   // TODO: When AiMemoryLog model is added by backend, store there instead
   const feedbackSummary = reviews.map((r) =>
     `[${r.reviewerRole}] Score:${r.score}/10 Action:${r.action} — ${r.comment}`
   ).join(" | ")
 
+  const feedbackBlock = `--- Review Feedback ---\n${feedbackSummary}`
+  const basePrompt = content.aiPrompt
+    ? content.aiPrompt.replace(/\n\n--- Review Feedback ---\n[\s\S]*$/, "")
+    : ""
+
   await db.content.update({
     where: { id: contentId },
     data: {
-      aiPrompt: content.aiPrompt
-        ? `${content.aiPrompt}\n\n--- Review Feedback ---\n${feedbackSummary}`
-        : `--- Review Feedback ---\n${feedbackSummary}`,
+      aiPrompt: basePrompt ? `${basePrompt}\n\n${feedbackBlock}` : feedbackBlock,
     },
   })
 
