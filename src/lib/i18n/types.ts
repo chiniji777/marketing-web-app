@@ -18,6 +18,9 @@ export interface TranslationDictionary {
     templates: string
     campaigns: string
     adsManager: string
+    adsDashboard: string
+    allCampaigns: string
+    createCampaign: string
     socialListening: string
     mentions: string
     sentiment: string

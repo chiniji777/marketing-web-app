@@ -111,6 +111,11 @@ model Organization {
   leadForms          LeadForm[]
   contentTemplates   ContentTemplate[]
   tags               Tag[]
+  adCreatives        AdCreative[]
+  savedAudiences     SavedAudience[]
+  adRules            AdRule[]
+  adAlerts           AdAlert[]
+  adAbTests          AdAbTest[]
 
   @@map("organizations")
 }
@@ -924,4 +929,177 @@ model Comment {
 
   @@index([entityType, entityId])
   @@map("comments")
+}
+
+// ===== Facebook Ads Management =====
+
+enum CreativeType {
+  IMAGE
+  VIDEO
+  CAROUSEL
+  COLLECTION
+  STORY
+  REEL
+}
+
+enum AudienceType {
+  SAVED
+  CUSTOM
+  LOOKALIKE
+}
+
+enum AbTestStatus {
+  DRAFT
+  RUNNING
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+model AdCreative {
+  id             String       @id @default(cuid())
+  organizationId String
+  name           String
+  type           CreativeType
+  fileUrl        String       @db.Text
+  thumbnailUrl   String?      @db.Text
+  dimensions     Json?
+  fileSize       Int?
+  mimeType       String?
+  platformPostId String?
+  performance    Json?
+  tags           String[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("ad_creatives")
+}
+
+model SavedAudience {
+  id                 String       @id @default(cuid())
+  organizationId     String
+  name               String
+  description        String?
+  targeting          Json
+  estimatedSize      Int?
+  platformAudienceId String?
+  type               AudienceType @default(SAVED)
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("saved_audiences")
+}
+
+model AdRule {
+  id             String    @id @default(cuid())
+  organizationId String
+  name           String
+  description    String?
+  isActive       Boolean   @default(true)
+  conditions     Json
+  actions        Json
+  scope          Json
+  schedule       String?
+  lastRunAt      DateTime?
+  runCount       Int       @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  logs         AdRuleLog[]
+
+  @@index([organizationId, isActive])
+  @@map("ad_rules")
+}
+
+model AdRuleLog {
+  id        String   @id @default(cuid())
+  ruleId    String
+  action    String
+  details   Json
+  entityId  String
+  createdAt DateTime @default(now())
+
+  rule AdRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+
+  @@index([ruleId, createdAt])
+  @@map("ad_rule_logs")
+}
+
+model AdAlert {
+  id              String    @id @default(cuid())
+  organizationId  String
+  name            String
+  metric          String
+  operator        String
+  threshold       Float
+  scope           Json?
+  channels        String[]
+  isActive        Boolean   @default(true)
+  lastTriggeredAt DateTime?
+  createdAt       DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, isActive])
+  @@map("ad_alerts")
+}
+
+model AdAbTest {
+  id              String       @id @default(cuid())
+  organizationId  String
+  name            String
+  description     String?
+  status          AbTestStatus @default(DRAFT)
+  testType        String
+  variants        Json
+  winnerVariant   String?
+  confidenceLevel Float?
+  sampleSize      Int?
+  startedAt       DateTime?
+  endedAt         DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, status])
+  @@map("ad_ab_tests")
+}
+
+model AdPerformanceSnapshot {
+  id             String   @id @default(cuid())
+  organizationId String
+  campaignId     String?
+  adSetId        String?
+  date           DateTime @db.Date
+  hour           Int?
+  impressions    Int      @default(0)
+  clicks         Int      @default(0)
+  spend          Decimal  @default(0) @db.Decimal(12, 2)
+  conversions    Int      @default(0)
+  revenue        Decimal  @default(0) @db.Decimal(12, 2)
+  reach          Int      @default(0)
+  frequency      Float?
+  cpc            Decimal? @db.Decimal(12, 2)
+  cpm            Decimal? @db.Decimal(12, 2)
+  ctr            Float?
+  roas           Float?
+  cpa            Decimal? @db.Decimal(12, 2)
+  placement      String?
+  ageGroup       String?
+  gender         String?
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  @@unique([organizationId, campaignId, adSetId, date, hour, placement])
+  @@index([organizationId, date])
+  @@index([campaignId, date])
+  @@map("ad_performance_snapshots")
 }
