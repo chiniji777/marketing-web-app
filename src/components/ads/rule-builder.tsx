@@ -21,14 +21,23 @@ export type ConditionOperator = "gt" | "gte" | "lt" | "lte" | "eq"
 export type ActionType = "pause_campaign" | "resume_campaign" | "adjust_budget" | "send_alert"
 
 export interface RuleCondition {
+  _key?: string
   metric: ConditionMetric
   operator: ConditionOperator
   value: number
 }
 
 export interface RuleAction {
+  _key?: string
   type: ActionType
   params?: Record<string, unknown>
+}
+
+let _keyCounter = 0
+function genKey() { return `k${++_keyCounter}_${Date.now()}` }
+function ensureKey<T extends { _key?: string }>(item: T): T & { _key: string } {
+  if (!item._key) return { ...item, _key: genKey() }
+  return item as T & { _key: string }
 }
 
 export interface RuleBuilderData {
@@ -105,7 +114,7 @@ export function RuleBuilder({ data, onChange }: RuleBuilderProps) {
   const addCondition = () => {
     onChange({
       ...data,
-      conditions: [...data.conditions, { metric: "cpa", operator: "gt", value: 0 }],
+      conditions: [...data.conditions, { _key: genKey(), metric: "cpa", operator: "gt", value: 0 }],
     })
   }
 
@@ -123,7 +132,7 @@ export function RuleBuilder({ data, onChange }: RuleBuilderProps) {
   const addAction = () => {
     onChange({
       ...data,
-      actions: [...data.actions, { type: "pause_campaign" }],
+      actions: [...data.actions, { _key: genKey(), type: "pause_campaign" }],
     })
   }
 
@@ -173,8 +182,10 @@ export function RuleBuilder({ data, onChange }: RuleBuilderProps) {
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
-          {data.conditions.map((condition, index) => (
-            <div key={index} className="flex items-center gap-2">
+          {data.conditions.map((cRaw, index) => {
+            const condition = ensureKey(cRaw)
+            return (
+            <div key={condition._key} className="flex items-center gap-2">
               {index > 0 && (
                 <Badge variant="outline" className="shrink-0 text-xs">
                   {data.logic}
@@ -226,7 +237,8 @@ export function RuleBuilder({ data, onChange }: RuleBuilderProps) {
                 <Trash2 className="h-4 w-4" />
               </Button>
             </div>
-          ))}
+            )
+          })}
 
           <Button type="button" variant="outline" size="sm" onClick={addCondition}>
             <Plus className="mr-1 h-3.5 w-3.5" />
@@ -241,8 +253,10 @@ export function RuleBuilder({ data, onChange }: RuleBuilderProps) {
           <CardTitle className="text-base">การกระทำ (Actions)</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {data.actions.map((action, index) => (
-            <div key={index} className="flex items-center gap-2">
+          {data.actions.map((aRaw, index) => {
+            const action = ensureKey(aRaw)
+            return (
+            <div key={action._key} className="flex items-center gap-2">
               <Select
                 value={action.type}
                 onValueChange={(v) => updateAction(index, v as ActionType)}
@@ -280,7 +294,8 @@ export function RuleBuilder({ data, onChange }: RuleBuilderProps) {
                 <Trash2 className="h-4 w-4" />
               </Button>
             </div>
-          ))}
+            )
+          })}
 
           <Button type="button" variant="outline" size="sm" onClick={addAction}>
             <Plus className="mr-1 h-3.5 w-3.5" />

@@ -26,7 +26,7 @@ import {
 } from "@/components/ads/rule-builder"
 
 const SCHEDULE_OPTIONS = [
-  { value: "", label: "ไม่ตั้งเวลา" },
+  { value: "none", label: "ไม่ตั้งเวลา" },
   { value: "0 * * * *", label: "ทุกชั่วโมง" },
   { value: "0 */6 * * *", label: "ทุก 6 ชั่วโมง" },
   { value: "0 */12 * * *", label: "ทุก 12 ชั่วโมง" },
@@ -41,7 +41,7 @@ export default function CreateRulePage() {
 
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
-  const [schedule, setSchedule] = useState("")
+  const [schedule, setSchedule] = useState("none")
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(!!editId)
 
@@ -59,7 +59,7 @@ export default function CreateRulePage() {
         const rule = await getAdRule(editId!)
         setName(rule.name)
         setDescription(rule.description || "")
-        setSchedule(rule.schedule || "")
+        setSchedule(rule.schedule || "none")
         const conds = rule.conditions as unknown as { conditions: RuleCondition[]; logic: "AND" | "OR" }
         const acts = rule.actions as unknown as { actions: RuleAction[] }
         setBuilderData({
@@ -102,7 +102,7 @@ export default function CreateRulePage() {
         conditions: { conditions: builderData.conditions, logic: builderData.logic },
         actions: { actions: builderData.actions },
         scope: {},
-        schedule: schedule || undefined,
+        schedule: schedule !== "none" ? schedule : undefined,
       }
 
       if (editId) {
@@ -183,7 +183,7 @@ export default function CreateRulePage() {
               </SelectTrigger>
               <SelectContent>
                 {SCHEDULE_OPTIONS.map((s) => (
-                  <SelectItem key={s.value || "none"} value={s.value || "none"}>
+                  <SelectItem key={s.value} value={s.value}>
                     {s.label}
                   </SelectItem>
                 ))}
