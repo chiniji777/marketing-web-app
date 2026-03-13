@@ -53,6 +53,9 @@ import {
   Unlink,
   BarChart3,
   ExternalLink,
+  Image as ImageIcon,
+  Users,
+  Zap,
 } from "lucide-react"
 import { toast } from "sonner"
 import { useTranslations } from "@/hooks/use-locale"
@@ -275,6 +278,15 @@ export default function AdsPage() {
     <div className="space-y-6">
       <PageHeader heading={t.ads.title} description={t.ads.subtitle}>
         <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/ads/audiences"><Users className="mr-2 h-4 w-4" />Audiences</Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/ads/creatives"><ImageIcon className="mr-2 h-4 w-4" />Creative Library</Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/ads/rules"><Zap className="mr-2 h-4 w-4" />Auto-Rules</Link>
+          </Button>
           <Button variant="outline" onClick={handleConnectFacebook}>
             <Facebook className="mr-2 h-4 w-4" />เชื่อมต่อ Facebook
           </Button>
