@@ -69,7 +69,7 @@ export async function getAdRule(id: string) {
 }
 
 export async function createAdRule(input: RuleInput) {
-  const { db } = await getOrgContext()
+  const { db, organizationId } = await getOrgContext()
 
   if (!input.name) throw new Error("name is required")
   if (!input.conditions?.conditions?.length) throw new Error("At least one condition is required")
@@ -79,10 +79,11 @@ export async function createAdRule(input: RuleInput) {
     data: {
       name: input.name,
       description: input.description || null,
-      conditions: input.conditions,
-      actions: input.actions,
-      scope: input.scope || {},
+      conditions: JSON.parse(JSON.stringify(input.conditions)),
+      actions: JSON.parse(JSON.stringify(input.actions)),
+      scope: input.scope ? JSON.parse(JSON.stringify(input.scope)) : {},
       schedule: input.schedule || null,
+      organizationId,
     },
   })
 
@@ -200,7 +201,7 @@ async function executeActions(
           const changePct = (action.params?.change_pct as number) || 0
           const campaign = await db.adsCampaign.findUnique({ where: { id: campaignId } })
           if (campaign?.dailyBudget) {
-            const newBudget = Math.round(campaign.dailyBudget * (1 + changePct / 100))
+            const newBudget = Math.round(Number(campaign.dailyBudget) * (1 + changePct / 100))
             await updateFacebookCampaign(campaignId, { dailyBudget: newBudget })
             results.push({ action: "adjust_budget", details: { campaignId, oldBudget: campaign.dailyBudget, newBudget, changePct } })
           }
@@ -235,9 +236,9 @@ export async function evaluateRules() {
   const summary: { ruleId: string; ruleName: string; matchedCampaigns: number; actions: unknown[] }[] = []
 
   for (const rule of activeRules) {
-    const conditions = rule.conditions as { conditions: RuleCondition[]; logic: "AND" | "OR" }
-    const actions = rule.actions as { actions: RuleAction[] }
-    const scope = rule.scope as { campaignIds?: string[]; platform?: string }
+    const conditions = rule.conditions as unknown as { conditions: RuleCondition[]; logic: "AND" | "OR" }
+    const actions = rule.actions as unknown as { actions: RuleAction[] }
+    const scope = rule.scope as unknown as { campaignIds?: string[]; platform?: string }
 
     // Get campaigns in scope
     const campaignWhere: Record<string, unknown> = {}
@@ -254,7 +255,7 @@ export async function evaluateRules() {
     const ruleActions: unknown[] = []
 
     for (const campaign of campaigns) {
-      const metrics = (campaign.metrics as Record<string, unknown>) || {}
+      const metrics = (campaign.performanceData as Record<string, unknown>) || {}
       if (matchesConditions(metrics, conditions.conditions, conditions.logic)) {
         matchedCount++
         const results = await executeActions(db, campaign.id, actions.actions, rule.id, false)
@@ -266,7 +267,7 @@ export async function evaluateRules() {
             data: {
               ruleId: rule.id,
               action: result.action,
-              details: result.details,
+              details: result.details as Record<string, string>,
               entityId: campaign.id,
             },
           })
@@ -297,9 +298,9 @@ export async function dryRunRule(id: string) {
   const rule = await db.adRule.findUnique({ where: { id } })
   if (!rule) throw new Error("Rule not found")
 
-  const conditions = rule.conditions as { conditions: RuleCondition[]; logic: "AND" | "OR" }
-  const actions = rule.actions as { actions: RuleAction[] }
-  const scope = rule.scope as { campaignIds?: string[]; platform?: string }
+  const conditions = rule.conditions as unknown as { conditions: RuleCondition[]; logic: "AND" | "OR" }
+  const actions = rule.actions as unknown as { actions: RuleAction[] }
+  const scope = rule.scope as unknown as { campaignIds?: string[]; platform?: string }
 
   const campaignWhere: Record<string, unknown> = {}
   if (scope.campaignIds?.length) {
@@ -314,7 +315,7 @@ export async function dryRunRule(id: string) {
   const matched: { campaignId: string; campaignName: string; metrics: unknown; wouldExecute: unknown[] }[] = []
 
   for (const campaign of campaigns) {
-    const metrics = (campaign.metrics as Record<string, unknown>) || {}
+    const metrics = (campaign.performanceData as Record<string, unknown>) || {}
     if (matchesConditions(metrics, conditions.conditions, conditions.logic)) {
       const results = await executeActions(db, campaign.id, actions.actions, rule.id, true)
       matched.push({

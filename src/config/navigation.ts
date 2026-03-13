@@ -67,6 +67,11 @@ export const dashboardNavigation: NavSection[] = [
         title: "Ads Manager",
         href: "/ads",
         icon: Target,
+        children: [
+          { title: "Ads Dashboard", href: "/ads/dashboard", icon: BarChart3 },
+          { title: "All Campaigns", href: "/ads", icon: Target },
+          { title: "Create Campaign", href: "/ads/create", icon: Target },
+        ],
       },
       {
         title: "Social Listening",

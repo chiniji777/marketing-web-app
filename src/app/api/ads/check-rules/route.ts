@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
         const campaigns = await db.adsCampaign.findMany({ where: campaignWhere })
 
         for (const campaign of campaigns) {
-          const metrics = (campaign.metrics as Record<string, unknown>) || {}
+          const metrics = (campaign.performanceData as Record<string, unknown>) || {}
 
           const matches = conditions.logic === "AND"
             ? conditions.conditions.every((c) => evalCond(getMetric(metrics, c.metric), c.operator, c.value))
@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
                 data: {
                   ruleId: rule.id,
                   action: action.type,
-                  details: { campaignId: campaign.id, campaignName: campaign.name, params: action.params },
+                  details: { campaignId: campaign.id, campaignName: campaign.name, params: (action.params ?? null) as Record<string, string> },
                   entityId: campaign.id,
                 },
               })

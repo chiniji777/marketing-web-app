@@ -30,7 +30,7 @@ export async function getAdAlerts() {
 }
 
 export async function createAdAlert(input: CreateAlertInput) {
-  const { db } = await getOrgContext()
+  const { db, organizationId } = await getOrgContext()
 
   if (!input.name) throw new Error("name is required")
   if (!input.metric) throw new Error("metric is required")
@@ -46,6 +46,7 @@ export async function createAdAlert(input: CreateAlertInput) {
       threshold: input.threshold,
       scope: input.scope || {},
       channels: input.channels,
+      organizationId,
     },
   })
 
@@ -79,7 +80,7 @@ function evaluateCondition(metricValue: number, operator: AlertOperator, thresho
 }
 
 export async function checkAlerts() {
-  const { userId, db } = await getOrgContext()
+  const { userId, organizationId, db } = await getOrgContext()
 
   const activeAlerts = await db.adAlert.findMany({
     where: { isActive: true },
@@ -102,7 +103,7 @@ export async function checkAlerts() {
     const matched: { id: string; name: string; metricValue: number }[] = []
 
     for (const campaign of campaigns) {
-      const metrics = (campaign.metrics as Record<string, unknown>) || {}
+      const metrics = (campaign.performanceData as Record<string, unknown>) || {}
       const metricValue = typeof metrics[alert.metric] === "number" ? (metrics[alert.metric] as number) : 0
 
       if (evaluateCondition(metricValue, alert.operator as AlertOperator, alert.threshold)) {
@@ -116,10 +117,11 @@ export async function checkAlerts() {
         await db.notification.create({
           data: {
             userId,
+            organizationId,
             title: `Alert: ${alert.name}`,
             message: `${matched.length} campaign(s) triggered alert "${alert.name}" (${alert.metric} ${alert.operator} ${alert.threshold})`,
             type: "AD_ALERT",
-            data: { alertId: alert.id, matchedCampaigns: matched.map((m) => m.id) },
+            metadata: { alertId: alert.id, matchedCampaigns: matched.map((m) => m.id) },
           },
         })
       }
